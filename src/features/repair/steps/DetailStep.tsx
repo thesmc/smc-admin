@@ -9,7 +9,7 @@ import type { RepairFormControl } from '../formConfig'
  * @returns 상세 정보 스텝
  */
 export default function DetailStep({ values, setField }: RepairFormControl) {
-  const { departmentOptions } = useOrgSettings()
+  const { departmentOptions, locations } = useOrgSettings()
   return (
     <FormSection title="요청자 정보">
       <FormField label="이름" htmlFor="requesterName" required>
@@ -45,6 +45,15 @@ export default function DetailStep({ values, setField }: RepairFormControl) {
           value={values.email}
           onChange={(v) => setField('email', v)}
           placeholder="예: hong@thesmc.co.kr"
+        />
+      </FormField>
+
+      <FormField label="현재 위치" htmlFor="location">
+        <SelectField
+          id="location"
+          value={values.location}
+          onChange={(v) => setField('location', v)}
+          options={locations}
         />
       </FormField>
     </FormSection>

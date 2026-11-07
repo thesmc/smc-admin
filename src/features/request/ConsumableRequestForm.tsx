@@ -14,11 +14,13 @@ import './RequestForm.css'
  */
 export default function ConsumableRequestForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions } = useOrgSettings()
+  const { departmentOptions, locations } = useOrgSettings()
   const { codes } = useMasterCodes()
   const { values, setField, reset } = useForm({
     requester: '',
     department: '',
+    email: '',
+    location: '',
     item: '',
     itemEtc: '',
     qty: '1',
@@ -36,6 +38,8 @@ export default function ConsumableRequestForm() {
     const result = await submitConsumableRequest({
       requester: values.requester,
       department: values.department,
+      email: values.email,
+      location: values.location,
       item: finalItem,
       qty: values.qty,
       reason: values.reason,
@@ -57,6 +61,12 @@ export default function ConsumableRequestForm() {
         </FormField>
         <FormField label="부서" htmlFor="cr-dept" required>
           <SelectField id="cr-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
+        </FormField>
+        <FormField label="이메일" htmlFor="cr-email">
+          <TextInput id="cr-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
+        </FormField>
+        <FormField label="현재 위치" htmlFor="cr-loc">
+          <SelectField id="cr-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
         </FormField>
         <FormField label="소모품" htmlFor="cr-item" required>
           <SelectField id="cr-item" value={values.item} onChange={(v) => setField('item', v)} options={codes.consumables} />

@@ -26,6 +26,9 @@ var API_TOKEN = PropertiesService.getScriptProperties().getProperty('API_TOKEN')
 /** Slack Incoming Webhook URL. 비우면 Slack 알림을 건너뜁니다. */
 var SLACK_WEBHOOK_URL = ''
 
+/** 수리 접수 알림을 받을 총무팀(관리자) 이메일. 비우면 관리자 알림을 건너뜁니다. */
+var ADMIN_EMAIL = 'hoon2@thesmc.co.kr'
+
 /**
  * 수리 사진을 저장할 Google Drive 폴더 ID.
  * 사용자가 직접 만들어 **공유 설정(링크가 있는 사용자 보기 등)**을 지정한 폴더를 씁니다.
@@ -134,8 +137,13 @@ function doGet(e) {
     if (API_TOKEN && params.token !== API_TOKEN) {
       return jsonOutput_({ ok: false, message: '인증 실패(토큰 불일치)' })
     }
-    // 외부업체는 '전달된' 수리 건만 조회 가능
-    return jsonOutput_({ ok: true, repairs: buildRepairs_().filter(function (r) { return r.dispatched }) })
+    // 외부업체는 '전달된' 수리 건만 조회 가능. 완료 처리된 건은 목록에서 제외(시트에는 '완료'로 남음).
+    return jsonOutput_({
+      ok: true,
+      repairs: buildRepairs_().filter(function (r) {
+        return r.dispatched && r.status !== '완료'
+      }),
+    })
   }
 
   if (params.action === 'orgSettings') {
@@ -162,7 +170,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v24-dashboard-live',
+    version: 'v25-request-contact',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -248,6 +256,11 @@ function handleAssetRequest_(p) {
     p.reason,
     detail,
     '접수',
+    '', // 9 처리방법(총무팀)
+    '', // 10 처리메모
+    '', // 11 처리일시
+    p.email || '', // 12 이메일
+    p.location || '', // 13 현재 위치
   ])
   notifySlack_('📝 *자산 신청* ' + (p.requester || '') + ' / ' + (p.category || ''))
   return { ok: true }
@@ -270,6 +283,11 @@ function handleReturnRequest_(p) {
     p.reason,
     p.note,
     '접수',
+    '', // 9 처리방법
+    '', // 10 처리메모
+    '', // 11 처리일시
+    p.email || '', // 12 이메일
+    p.location || '', // 13 현재 위치
   ])
   notifySlack_('📦 *반납 신청* ' + (p.requester || '') + ' / ' + (p.assetNumber || ''))
   return { ok: true }
@@ -293,6 +311,11 @@ function handleConsumableRequest_(p) {
     p.reason,
     '수량 ' + (p.qty || ''),
     '접수',
+    '', // 9 처리방법
+    '', // 10 처리메모
+    '', // 11 처리일시
+    p.email || '', // 12 이메일
+    p.location || '', // 13 현재 위치
   ])
   notifySlack_('🧴 *소모품 신청* ' + (p.requester || '') + ' / ' + (p.item || '') + ' ' + (p.qty || ''))
   return { ok: true }
@@ -319,6 +342,11 @@ function handleAssetSwapRequest_(p) {
     p.reason,
     detail,
     '접수',
+    '', // 9 처리방법
+    '', // 10 처리메모
+    '', // 11 처리일시
+    p.email || '', // 12 이메일
+    p.location || '', // 13 현재 위치
   ])
   notifySlack_('🔁 *자산 교체 신청* ' + (p.requester || '') + ' / ' + (p.assetNumber || '') + ' ' + (p.reason || ''))
   return { ok: true }
@@ -353,6 +381,8 @@ function buildRequests_() {
       method: r[9] || '',
       note: r[10] || '',
       processedAt: formatDateCell_(r[11]),
+      email: r[12] || '', // 12 이메일
+      location: r[13] || '', // 13 현재 위치
     })
   }
   return out.reverse()
@@ -497,6 +527,8 @@ function buildRepairs_() {
       assignee: r[10] || '',
       dispatched: !!r[12], // 12: 외부업체 전달 여부(총무팀만 설정)
       attachments: r[8] || '', // 8: 첨부 사진 파일명(쉼표 구분)
+      email: r[13] || '', // 13: 접수자 이메일
+      location: r[14] || '', // 14: 현재 위치
     })
   }
   return out.reverse()
@@ -955,8 +987,11 @@ function handleRepairRequest_(p) {
     p.priority,
     attachments, // 8 첨부(Drive 공개 URL 쉼표구분, 과거분은 파일명)
     '접수',
-    '', // 담당자(배정 전)
-    '', // 처리완료일
+    '', // 10 담당자(배정 전)
+    '', // 11 처리완료일
+    '', // 12 외부업체 전달 여부(repairDispatch가 설정)
+    p.email || '', // 13 접수자 이메일
+    p.location || '', // 14 현재 위치
   ])
 
   // 모든 접수는 변경로그에 남겨 추적성을 확보합니다.
@@ -964,7 +999,24 @@ function handleRepairRequest_(p) {
 
   notifySlack_('🛠️ *새 수리 접수* ' + ticketNumber + '\n' + p.assetNumber + ' - ' + p.symptom)
 
-  // 요청자 이메일: 폼에 입력한 이메일 우선, 없으면 사용자목록에서 이름으로 조회(둘 다 없으면 건너뜀).
+  // (1) 총무팀(관리자)에게 '신청이 들어왔다'는 알림 메일.
+  if (ADMIN_EMAIL) {
+    MailApp.sendEmail(
+      ADMIN_EMAIL,
+      '[IT 자산관리] 새 수리 요청이 접수되었습니다 (' + ticketNumber + ')',
+      '새 수리 요청이 접수되었습니다.\n\n' +
+        '접수번호: ' + ticketNumber + '\n' +
+        '신청자: ' + (p.requesterName || '') + ' (' + (p.department || '') + ')\n' +
+        '연락처: ' + (p.contact || '') + '\n' +
+        '이메일: ' + (p.email || '') + '\n' +
+        '현재 위치: ' + (p.location || '') + '\n' +
+        '자산: ' + (p.assetNumber || '') + ' ' + (p.assetName || '') + '\n' +
+        '증상: ' + (p.symptom || '') + '\n\n' +
+        '신청관리 화면에서 확인해 주세요.',
+    )
+  }
+
+  // (2) 신청자 이메일로 '접수되었다'는 확인 메일. 폼 입력 우선, 없으면 사용자목록에서 이름으로 조회.
   var email = (p.email && String(p.email).indexOf('@') !== -1) ? p.email : lookupEmailByName_(p.requesterName)
   if (email) {
     MailApp.sendEmail(
@@ -974,7 +1026,8 @@ function handleRepairRequest_(p) {
         '수리 요청이 정상 접수되었습니다.\n' +
         '접수번호: ' + ticketNumber + '\n' +
         '자산: ' + p.assetNumber + ' ' + (p.assetName || '') + '\n' +
-        '증상: ' + p.symptom + '\n\n' +
+        '증상: ' + p.symptom + '\n' +
+        '현재 위치: ' + (p.location || '') + '\n\n' +
         '담당자가 확인 후 빠르게 연락드리겠습니다.',
     )
   }

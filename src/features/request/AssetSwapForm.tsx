@@ -30,11 +30,13 @@ function emptyItem(): SwapItem {
  */
 export default function AssetSwapForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions } = useOrgSettings()
+  const { departmentOptions, locations } = useOrgSettings()
   const { codes } = useMasterCodes()
   const { values, setField, reset } = useForm({
     requester: '',
     department: '',
+    email: '',
+    location: '',
     reason: '',
     note: '',
   })
@@ -60,6 +62,8 @@ export default function AssetSwapForm() {
       submitAssetSwap({
         requester: values.requester,
         department: values.department,
+        email: values.email,
+        location: values.location,
         assetNumber: it.assetNumber,
         assetName: it.assetName,
         category: it.category,
@@ -85,6 +89,12 @@ export default function AssetSwapForm() {
         </FormField>
         <FormField label="부서" htmlFor="sw-dept" required>
           <SelectField id="sw-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
+        </FormField>
+        <FormField label="이메일" htmlFor="sw-email">
+          <TextInput id="sw-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
+        </FormField>
+        <FormField label="현재 위치" htmlFor="sw-loc">
+          <SelectField id="sw-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
         </FormField>
         <FormField label="교체 사유" htmlFor="sw-reason" required>
           <SelectField id="sw-reason" value={values.reason} onChange={(v) => setField('reason', v)} options={SWAP_REASONS} />

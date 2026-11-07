@@ -21,6 +21,7 @@ const STEPS = ['증상 입력', '상세 정보', '접수 완료']
 export default function RepairRequestPage() {
   const [step, setStep] = useState(1)
   const [ticketNumber, setTicketNumber] = useState('')
+  const [submitting, setSubmitting] = useState(false) // 사진 업로드가 길어 중복 제출되는 것을 막음
   const { values, setField, reset } = useForm(INITIAL_REPAIR_FORM)
 
   /**
@@ -29,7 +30,14 @@ export default function RepairRequestPage() {
    * 로컬 생성값을 사용합니다.
    */
   async function handleSubmit() {
-    const result = await submitRepairRequest(values)
+    if (submitting) return // 이미 전송 중이면 무시(중복 접수 방지)
+    setSubmitting(true)
+    let result
+    try {
+      result = await submitRepairRequest(values)
+    } finally {
+      setSubmitting(false)
+    }
 
     // 로컬 폴백 접수번호: 서버 응답에 ticketNumber가 없을 때 사용
     const now = new Date()
@@ -87,8 +95,8 @@ export default function RepairRequestPage() {
             </button>
           )}
           {step === 2 && (
-            <button type="button" className="btn-next" onClick={handleSubmit}>
-              접수하기
+            <button type="button" className="btn-next" onClick={handleSubmit} disabled={submitting}>
+              {submitting ? '접수 중…' : '접수하기'}
             </button>
           )}
         </div>

@@ -30,6 +30,8 @@ export interface RepairFormValues {
   contact: string
   /** 요청자 이메일 (접수 확인 메일 발송용). */
   email: string
+  /** 요청자 현재 위치(사옥·층). */
+  location: string
 }
 
 /** 수리 요청 폼 초기값. */
@@ -43,6 +45,7 @@ export const INITIAL_REPAIR_FORM: RepairFormValues = {
   department: '',
   contact: '',
   email: '',
+  location: '',
 }
 
 /** 폼 섹션/스텝 컴포넌트가 공통으로 받는 제어 객체. */

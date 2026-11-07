@@ -28,10 +28,12 @@ function emptyItem(): ReturnItem {
  */
 export default function ReturnRequestForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions } = useOrgSettings()
+  const { departmentOptions, locations } = useOrgSettings()
   const { values, setField, reset } = useForm({
     requester: '',
     department: '',
+    email: '',
+    location: '',
     reason: '',
     note: '',
   })
@@ -57,6 +59,8 @@ export default function ReturnRequestForm() {
       submitReturnRequest({
         requester: values.requester,
         department: values.department,
+        email: values.email,
+        location: values.location,
         assetNumber: it.assetNumber,
         assetName: it.assetName,
         reason: values.reason,
@@ -81,6 +85,12 @@ export default function ReturnRequestForm() {
         </FormField>
         <FormField label="부서" htmlFor="rr-dept" required>
           <SelectField id="rr-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
+        </FormField>
+        <FormField label="이메일" htmlFor="rr-email">
+          <TextInput id="rr-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
+        </FormField>
+        <FormField label="현재 위치" htmlFor="rr-loc">
+          <SelectField id="rr-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
         </FormField>
         <FormField label="반납 사유" htmlFor="rr-reason">
           <SelectField id="rr-reason" value={values.reason} onChange={(v) => setField('reason', v)} options={RETURN_REASONS} />

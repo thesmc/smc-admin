@@ -17,7 +17,7 @@ import './VendorPage.css'
  * @returns 외부업체 페이지
  */
 export default function VendorPage() {
-  const { repairs, loading, usingMock } = useVendorRepairs()
+  const { repairs, loading, usingMock, applyUpdate } = useVendorRepairs()
   const [selected, setSelected] = useState<RepairRow | null>(null)
 
   return (
@@ -54,7 +54,13 @@ export default function VendorPage() {
         ))}
       </div>
 
-      {selected && <VendorDetailModal repair={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <VendorDetailModal
+          repair={selected}
+          onClose={() => setSelected(null)}
+          onSaved={applyUpdate}
+        />
+      )}
     </RoleShell>
   )
 }

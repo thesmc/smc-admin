@@ -26,12 +26,14 @@ function emptyItem(): AssetItem {
  */
 export default function AssetRequestForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions } = useOrgSettings()
+  const { departmentOptions, locations } = useOrgSettings()
   const { codes } = useMasterCodes()
-  // 공통 정보(신청자/부서/사유/희망일)는 한 번만 입력
+  // 공통 정보(신청자/부서/이메일/위치/사유/희망일)는 한 번만 입력
   const { values, setField, reset } = useForm({
     requester: '',
     department: '',
+    email: '',
+    location: '',
     reason: '',
     wantDate: '',
   })
@@ -58,6 +60,8 @@ export default function AssetRequestForm() {
       submitAssetRequest({
         requester: values.requester,
         department: values.department,
+        email: values.email,
+        location: values.location,
         category: it.category,
         spec: it.spec,
         reason: values.reason,
@@ -82,6 +86,12 @@ export default function AssetRequestForm() {
         </FormField>
         <FormField label="부서" htmlFor="ar-dept" required>
           <SelectField id="ar-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
+        </FormField>
+        <FormField label="이메일" htmlFor="ar-email">
+          <TextInput id="ar-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
+        </FormField>
+        <FormField label="현재 위치" htmlFor="ar-loc">
+          <SelectField id="ar-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
         </FormField>
         <FormField label="희망일" htmlFor="ar-date">
           <TextInput id="ar-date" type="date" value={values.wantDate} onChange={(v) => setField('wantDate', v)} />

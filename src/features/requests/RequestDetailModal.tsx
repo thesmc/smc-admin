@@ -91,6 +91,15 @@ export default function RequestDetailModal({ request, onClose, onSaved }: Reques
             {request.assetNumber && ` (${request.assetNumber})`}
           </dd>
         </div>
+        {(request.email || request.location) && (
+          <div>
+            <dt>이메일 / 위치</dt>
+            <dd>
+              {request.email || '-'}
+              {request.location && ` · ${request.location}`}
+            </dd>
+          </div>
+        )}
         <div className="rd-full">
           <dt>사유</dt>
           <dd>{request.reason || '-'}</dd>

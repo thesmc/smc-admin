@@ -31,6 +31,10 @@ export interface RequestRow {
   note: string
   /** 처리일시(yyyy-MM-dd, 미처리면 빈 값). */
   processedAt: string
+  /** 신청자 이메일(선택). */
+  email?: string
+  /** 신청 당시 현재 위치(선택). */
+  location?: string
 }
 
 /** 신청 처리 갱신 요청 값(총무팀). */

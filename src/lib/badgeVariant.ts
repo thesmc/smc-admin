@@ -30,6 +30,7 @@ export function getAssetStatusVariant(status: AssetStatus): BadgeVariant {
 /** 수리 진행 상태 → 뱃지 색상 매핑. (누락 방지를 위해 Record 사용) */
 const REPAIR_STATUS_VARIANT: Record<RepairStatus, BadgeVariant> = {
   접수: 'info',
+  확인: 'info',
   수리중: 'warning',
   완료: 'success',
 }

@@ -26,6 +26,10 @@ export interface RepairRow {
   dispatched: boolean
   /** 첨부 사진 파일명(쉼표 구분). 실제 이미지 표시는 Drive 업로드 후 가능. */
   attachments: string
+  /** 접수자 이메일(선택). */
+  email?: string
+  /** 접수 당시 현재 위치(선택). */
+  location?: string
 }
 
 /** 수리 상태별 요약. */

@@ -4,6 +4,10 @@ import { submitToGas, type GasResult } from '@/lib/gasClient'
 export interface AssetRequestValues {
   requester: string
   department: string
+  /** 요청자 이메일(접수 안내용). */
+  email: string
+  /** 요청자 현재 위치(사옥·층). */
+  location: string
   category: string
   spec: string
   reason: string
@@ -14,6 +18,8 @@ export interface AssetRequestValues {
 export interface ReturnRequestValues {
   requester: string
   department: string
+  email: string
+  location: string
   assetNumber: string
   assetName: string
   reason: string
@@ -24,6 +30,8 @@ export interface ReturnRequestValues {
 export interface ConsumableRequestValues {
   requester: string
   department: string
+  email: string
+  location: string
   item: string
   qty: string
   reason: string
@@ -33,6 +41,8 @@ export interface ConsumableRequestValues {
 export interface AssetSwapValues {
   requester: string
   department: string
+  email: string
+  location: string
   /** 교체 대상(기존) 자산번호. */
   assetNumber: string
   /** 교체 대상(기존) 자산명. */

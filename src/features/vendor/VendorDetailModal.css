@@ -24,6 +24,37 @@
   word-break: break-word;
 }
 
+.vd-edit {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.vd-hint {
+  font-size: 11px;
+  color: var(--color-text-sub);
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.vd-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.vd-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.vd-btn.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
 .vd-photos-title {
   font-size: 12px;
   font-weight: 700;

@@ -118,6 +118,15 @@ export default function RepairDetailModal({ repair, onClose, onSaved }: RepairDe
           <dt>우선순위</dt>
           <dd>{repair.priority}</dd>
         </div>
+        {(repair.email || repair.location) && (
+          <div>
+            <dt>이메일 / 위치</dt>
+            <dd>
+              {repair.email || '-'}
+              {repair.location && ` · ${repair.location}`}
+            </dd>
+          </div>
+        )}
         <div className="rd-full">
           <dt>증상</dt>
           <dd>{repair.symptom}</dd>
