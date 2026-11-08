@@ -34,36 +34,46 @@ async function loadLogoDataUrl(): Promise<string | null> {
 
 /**
  * 자산번호를 QR 코드 이미지(data URL)로 생성합니다.
+ * 300dpi 열전사 프린터(도시바 B-FV4)에서도 또렷하도록 고해상도(400px)로 뽑고,
+ * 스캔 신뢰성을 위해 여백(quiet zone, 2모듈)을 둡니다.
  *
  * @param value - QR로 인코딩할 값(자산번호)
  * @returns PNG data URL
  */
 function makeQrDataUrl(value: string): Promise<string> {
-  return QRCode.toDataURL(value, { margin: 1, width: 200 })
+  // margin(모듈 단위 여백)이 너무 작으면 스캔 실패 → 2 유지. width는 인쇄 선명도용 고해상도.
+  return QRCode.toDataURL(value, { margin: 2, width: 400, errorCorrectionLevel: 'M' })
 }
 
-/** 라벨 공통 스타일. 단건·일괄 인쇄가 동일 레이아웃을 쓰도록 한 곳에서 정의. */
+/**
+ * 라벨 공통 스타일. 단건·일괄 인쇄가 동일 레이아웃을 쓰도록 한 곳에서 정의.
+ * 대상 프린터: 도시바 B-FV4 (300dpi) · 라벨지 50×30mm.
+ */
 const LABEL_STYLE = `
   * { box-sizing: border-box; font-family: -apple-system, 'Malgun Gothic', sans-serif; }
-  body { margin: 0; }
-  /* 라벨 크기 기본값 — TOSHIBA 라벨지 실측(mm)에 맞게 조정 예정 */
+  /* 프린터 드라이버가 임의 여백을 넣지 못하도록 용지=라벨 크기로 고정 */
+  html, body { margin: 0; padding: 0; width: 50mm; }
   @page { size: 50mm 30mm; margin: 0; }
-  .label { width: 50mm; height: 30mm; padding: 2mm; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 1mm; }
-  .logo { font-size: 11pt; letter-spacing: 0.5px; }
+  .label { width: 50mm; height: 30mm; padding: 1.5mm; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.8mm; overflow: hidden;
+    /* 열전사는 1비트 출력 — 검정이 흐려지지 않게 색 보존 강제 */
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .logo { font-size: 10pt; letter-spacing: 0.5px; }
   .logo b { font-weight: 800; }
-  .logo-img { height: 5mm; width: auto; object-fit: contain; }
-  .qr { width: 17mm; height: 17mm; }
-  .num { font-size: 8pt; font-weight: 700; letter-spacing: 0.3px; }
+  .logo-img { height: 4.5mm; width: auto; object-fit: contain; }
+  .qr { width: 18mm; height: 18mm; }
+  .num { font-size: 9pt; font-weight: 800; letter-spacing: 0.3px; }
   @media print {
     /* 라벨마다 한 페이지(장)씩 인쇄. 마지막은 빈 페이지 방지. */
     .label { page-break-after: always; }
     .label:last-of-type { page-break-after: auto; }
-    .actions { display: none; }
+    .actions, .print-hint { display: none; }
   }
   @media screen {
     body { background: #f1f5f9; padding: 24px; text-align: center; }
     .label { background: #fff; border: 1px solid #ddd; margin: 0 auto 12px; }
+    .print-hint { max-width: 320px; margin: 0 auto 12px; font-size: 12px; color: #475569;
+      background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 12px; line-height: 1.5; }
     .actions { margin-top: 8px; }
     .actions button { padding: 8px 18px; font-size: 14px; font-weight: 700;
       background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
@@ -113,6 +123,7 @@ export async function printAssetLabels(assets: AssetRow[]): Promise<void> {
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8" />
 <title>${title}</title>
 <style>${LABEL_STYLE}</style></head><body>
+  <div class="print-hint">도시바 B-FV4 인쇄 설정: <b>용지 50×30mm</b> · <b>배율 100%(실제 크기)</b> · 여백 없음으로 지정하세요. 라벨마다 1장씩 인쇄됩니다.</div>
   ${labels.join('\n  ')}
   <div class="actions"><button onclick="window.print()">인쇄 (${printable.length}건)</button></div>
   <script>window.onload = function () { setTimeout(function () { window.print() }, 300) }</script>

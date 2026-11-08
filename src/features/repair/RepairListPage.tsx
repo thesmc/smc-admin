@@ -22,6 +22,10 @@ export default function RepairListPage() {
   const [requestOpen, setRequestOpen] = useState(false)
   const [selected, setSelected] = useState<RepairRow | null>(null)
 
+  // 완료된 접수는 목록에서 숨깁니다.(시트·요약 카드에는 '완료'로 남음)
+  // 상세 모달에서 상태를 '완료'로 저장하면 patchRepair로 갱신 → 이 필터로 즉시 사라집니다.
+  const openRepairs = repairs.filter((r) => r.status !== '완료')
+
   return (
     <>
       {loading && <LoadingState message="수리 목록 불러오는 중…" />}
@@ -57,14 +61,14 @@ export default function RepairListPage() {
               </tr>
             </thead>
             <tbody>
-              {repairs.length === 0 && (
+              {openRepairs.length === 0 && (
                 <tr>
                   <td colSpan={7}>
-                    <EmptyState icon={Wrench} title="접수된 수리 요청이 없습니다." hint="우측 상단 ‘수리 접수’로 등록하세요." />
+                    <EmptyState icon={Wrench} title="진행 중인 수리 요청이 없습니다." hint="완료된 건은 목록에서 숨겨집니다. 우측 상단 ‘수리 접수’로 등록하세요." />
                   </td>
                 </tr>
               )}
-              {repairs.map((r) => (
+              {openRepairs.map((r) => (
                 <tr key={r.ticketNumber} className="repair-row" onClick={() => setSelected(r)}>
                   <td>{r.ticketNumber}</td>
                   <td>{r.receivedAt}</td>
