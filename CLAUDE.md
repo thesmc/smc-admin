@@ -213,7 +213,7 @@ src/
 > 로그인 영상 추가 압축/poster가 필요하면 로컬 ffmpeg로 재인코딩 가능(위 로그인 화면 메모 참고).
 
 > GAS 재배포로 URL이 바뀌면 `src/config/api.ts`의 `GAS_URL`도 갱신해야 함.
-> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v26-guest-access` / 코드 최신: `v27-user-division-dateonly` (⚠️ 재배포 필요 — 5_사용자목록 본부열(인덱스2) + 시트 '일시' 칸 날짜만(시각 제외) 저장).**
+> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v27-user-division-dateonly` / 코드 최신: `v28-user-email-col-fix` (⚠️ 재배포 필요 — 본부열 추가로 `lookupEmailByName_` 이메일 열을 4→5로 정정).**
 
 ## 🔀 역할 기반 개편 로드맵 (진행 중)
 

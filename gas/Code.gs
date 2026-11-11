@@ -170,7 +170,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v27-user-division-dateonly',
+    version: 'v28-user-email-col-fix',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -1193,7 +1193,7 @@ function appendRow_(sheetName, row) {
 
 /**
  * 사용자목록 시트에서 이름으로 이메일을 조회합니다.
- * (열 순서: 사번, 이름, 부서, 직급, 이메일)
+ * (열 순서: 0사번 1이름 2본부 3부서 4직급 5이메일 — 본부열 추가 반영)
  * @param {string} name - 조회할 이름
  * @return {string} 이메일 (없으면 빈 문자열)
  */
@@ -1203,7 +1203,7 @@ function lookupEmailByName_(name) {
   if (!sheet) return ''
   var values = sheet.getDataRange().getValues()
   for (var i = 1; i < values.length; i++) {
-    if (values[i][1] === name) return values[i][4] || ''
+    if (values[i][1] === name) return values[i][5] || '' // 5 이메일
   }
   return ''
 }
