@@ -22,6 +22,8 @@ export default function SettingsPage() {
     <div className="settings-stack">
     <Card
       title="사이드바 메뉴 표시 설정"
+      collapsible
+      storageKey="set.menu"
       action={
         <button type="button" className="set-reset" onClick={reset}>
           <RotateCcw size={14} /> 기본값 복원

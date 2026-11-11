@@ -21,3 +21,33 @@
   font-size: 13px;
   color: var(--color-text-sub);
 }
+
+/* 접이식 카드: 제목 버튼 + 셰브론 */
+.card-head-collapsible {
+  margin-bottom: 0;
+}
+.card-head-collapsible:has(+ .card-body) {
+  margin-bottom: 16px;
+}
+.card-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.card-chevron {
+  flex: none;
+  color: var(--color-text-sub);
+  transition: transform 0.15s;
+  transform: rotate(-90deg);
+}
+.card-chevron.open {
+  transform: rotate(0deg);
+}

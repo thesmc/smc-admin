@@ -43,7 +43,7 @@ export default function GuestAccessSection() {
   }
 
   return (
-    <Card title="비밀번호 없이 접속 (임시 개방)">
+    <Card title="비밀번호 없이 접속 (임시 개방)" collapsible storageKey="set.guest">
       <p className="guest-desc">
         켜면 로그인 화면에 <b>‘비밀번호 없이 입장(총무팀)’</b> 버튼이 생겨 누구나 비밀번호 없이 들어올 수 있습니다.
         서버에 저장되어 모든 기기에 적용되고, 끄면 비밀번호 없이 들어온 세션은 새로고침 시 다시 막힙니다.

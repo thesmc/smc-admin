@@ -6,6 +6,7 @@ import MockNotice from '@/components/feedback/MockNotice'
 import EmptyState from '@/components/feedback/EmptyState'
 import { getAssetStatusVariant } from '@/lib/badgeVariant'
 import { ASSET_STATUSES } from '@/constants/asset'
+import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useAssets } from './useAssets'
 import { useAssetSelection } from './useAssetSelection'
 import { useAssetBulkActions } from './useAssetBulkActions'
@@ -37,6 +38,7 @@ export default function AssetListPage() {
   const [scanOpen, setScanOpen] = useState(false)
   const [selected, setSelected] = useState<AssetRow | null>(null)
   const [filter, setFilter] = useState<AssetFilter>('전체')
+  const [divisionFilter, setDivisionFilter] = useState('') // 본부 필터('' = 전체)
   const [userFilter, setUserFilter] = useState('') // 사용자 정확일치 필터('' = 전체)
   const [statusFilter, setStatusFilter] = useState('') // 상태 필터('' = 전체)
   const [query, setQuery] = useState('')
@@ -44,6 +46,7 @@ export default function AssetListPage() {
   const [sortAsc, setSortAsc] = useState(true)
   // 다중 선택(대량 폐기·라벨 일괄 인쇄)
   const selection = useAssetSelection()
+  const { divisions } = useOrgSettings()
   const { bulkBusy, handleBulkPrint, handleBulkDispose } = useAssetBulkActions(
     assets,
     selection,
@@ -56,11 +59,19 @@ export default function AssetListPage() {
     [assets],
   )
 
+  // 선택한 본부의 팀 집합(부서→본부 매핑). 본부 필터는 "그 본부 소속 부서의 자산만" 표시.
+  const divisionTeams = useMemo(() => {
+    if (!divisionFilter) return null
+    return new Set(divisions.find((d) => d.name === divisionFilter)?.teams ?? [])
+  }, [divisionFilter, divisions])
+
   // 취득구분 → 사용자 → 상태 → 검색어 → 정렬 순으로 목록을 가공합니다.
   const visibleAssets = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     let list = filter === '전체' ? assets : assets.filter((a) => a.acquisitionType === filter)
 
+    // 본부 필터(선택 시): 그 본부에 속한 부서의 자산만
+    if (divisionTeams) list = list.filter((a) => divisionTeams.has(a.department))
     // 사용자/상태 정확일치 필터(선택 시)
     if (userFilter) list = list.filter((a) => a.user === userFilter)
     if (statusFilter) list = list.filter((a) => a.status === statusFilter)
@@ -96,7 +107,7 @@ export default function AssetListPage() {
       })
     }
     return list
-  }, [assets, filter, userFilter, statusFilter, query, sortKey, sortAsc])
+  }, [assets, filter, divisionTeams, userFilter, statusFilter, query, sortKey, sortAsc])
 
   /**
    * QR 스캔 결과 처리. 디코드된 자산번호로 목록에서 자산을 찾아 상세를 엽니다.
@@ -190,6 +201,21 @@ export default function AssetListPage() {
             ))}
           </div>
 
+          {/* 본부 필터: 긴 목록을 본부 단위로 좁혀 봄 */}
+          <select
+            className="asset-filter-select"
+            value={divisionFilter}
+            onChange={(e) => setDivisionFilter(e.target.value)}
+            aria-label="본부 필터"
+          >
+            <option value="">본부 전체</option>
+            {divisions.map((d) => (
+              <option key={d.name} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+
           {/* 정확일치 필터: 사용자 / 상태 */}
           <select
             className="asset-filter-select"
@@ -234,13 +260,14 @@ export default function AssetListPage() {
         </div>
 
         {/* 검색/필터 결과 건수 안내(사용자 필터 시 그 사람 자산이 몇 건인지 바로 확인) */}
-        {(query.trim() || userFilter || statusFilter) && (
+        {(query.trim() || divisionFilter || userFilter || statusFilter) && (
           <p className="asset-search-count">
+            {divisionFilter && <>본부 <strong>{divisionFilter}</strong> · </>}
             {userFilter && <>사용자 <strong>{userFilter}</strong> · </>}
             {statusFilter && <>상태 {statusFilter} · </>}
             {query.trim() && <>‘{query.trim()}’ · </>}
             결과 <strong>{visibleAssets.length}건</strong>
-            <button type="button" className="asset-filter-reset" onClick={() => { setUserFilter(''); setStatusFilter(''); setQuery('') }}>
+            <button type="button" className="asset-filter-reset" onClick={() => { setDivisionFilter(''); setUserFilter(''); setStatusFilter(''); setQuery('') }}>
               필터 초기화
             </button>
           </p>
@@ -279,12 +306,12 @@ export default function AssetListPage() {
                     <EmptyState
                       icon={Laptop}
                       title={
-                        query || filter !== '전체' || userFilter || statusFilter
+                        query || filter !== '전체' || divisionFilter || userFilter || statusFilter
                           ? '조건에 맞는 자산이 없습니다.'
                           : '등록된 자산이 없습니다.'
                       }
                       hint={
-                        query || filter !== '전체' || userFilter || statusFilter
+                        query || filter !== '전체' || divisionFilter || userFilter || statusFilter
                           ? '검색어·필터를 바꿔보세요.'
                           : '우측 상단 ‘자산 등록’으로 추가하세요.'
                       }

@@ -103,6 +103,8 @@ export default function OrgSettingsSection() {
     <>
       <Card
         title="부서(조직) 관리"
+        collapsible
+        storageKey="set.org.div"
         action={
           <div className="org-head-actions">
             <button type="button" className="org-btn" onClick={resetDiv} disabled={saving}>
@@ -153,6 +155,8 @@ export default function OrgSettingsSection() {
 
       <Card
         title="사용위치 관리"
+        collapsible
+        storageKey="set.org.loc"
         action={
           <div className="org-head-actions">
             <button type="button" className="org-btn" onClick={resetLoc} disabled={saving}>

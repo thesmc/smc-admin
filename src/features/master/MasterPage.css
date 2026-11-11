@@ -1,3 +1,9 @@
+.master-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .master-desc {
   font-size: 13px;
   color: var(--color-text-sub);

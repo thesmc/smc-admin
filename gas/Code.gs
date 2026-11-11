@@ -170,14 +170,14 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v26-guest-access',
+    version: 'v27-user-division-dateonly',
     tokenEnabled: !!API_TOKEN,
   })
 }
 
 /**
  * 사용자목록 시트를 목록(UserRow[])으로 변환합니다.
- * 열: 0사번 1이름 2부서 3직급 4이메일
+ * 열: 0사번 1이름 2본부 3부서 4직급 5이메일 (본부열을 부서 왼쪽에 추가)
  * @return {Object[]} 사용자 목록
  */
 function buildUsers_() {
@@ -191,9 +191,10 @@ function buildUsers_() {
     out.push({
       id: String(r[0] || ''),
       name: r[1] || '',
-      department: r[2] || '',
-      position: r[3] || '',
-      email: r[4] || '',
+      division: r[2] || '', // 2 본부
+      department: r[3] || '', // 3 부서
+      position: r[4] || '', // 4 직급
+      email: r[5] || '', // 5 이메일
     })
   }
   return out
@@ -212,7 +213,7 @@ function handleUserRegister_(p) {
       return { ok: false, message: '이미 존재하는 사번입니다: ' + p.id }
     }
   }
-  appendRow_(SHEET_USER, [p.id, p.name, p.department, p.position, p.email])
+  appendRow_(SHEET_USER, [p.id, p.name, p.division || '', p.department, p.position, p.email])
   return { ok: true }
 }
 
@@ -228,9 +229,10 @@ function handleUserUpdate_(p) {
     if (String(values[i][0]) !== String(p.id)) continue
     var row = i + 1
     sheet.getRange(row, 2).setValue(p.name || '') //       1 이름
-    sheet.getRange(row, 3).setValue(p.department || '') // 2 부서
-    sheet.getRange(row, 4).setValue(p.position || '') //   3 직급
-    sheet.getRange(row, 5).setValue(p.email || '') //      4 이메일
+    sheet.getRange(row, 3).setValue(p.division || '') //   2 본부
+    sheet.getRange(row, 4).setValue(p.department || '') // 3 부서
+    sheet.getRange(row, 5).setValue(p.position || '') //   4 직급
+    sheet.getRange(row, 6).setValue(p.email || '') //      5 이메일
     return { ok: true }
   }
   return { ok: false, message: '사번을 찾을 수 없습니다: ' + p.id }
@@ -243,7 +245,7 @@ function handleUserUpdate_(p) {
  * @return {Object} 처리 결과
  */
 function handleAssetRequest_(p) {
-  var now = new Date()
+  var now = stamp_() // 시트에 날짜만(시각 제외) 기록
   var detail = p.spec || ''
   if (p.wantDate) detail += (detail ? ' / ' : '') + '희망일 ' + p.wantDate
   appendRow_(SHEET_REQUEST, [
@@ -272,7 +274,7 @@ function handleAssetRequest_(p) {
  * @return {Object} 처리 결과
  */
 function handleReturnRequest_(p) {
-  var now = new Date()
+  var now = stamp_() // 시트에 날짜만(시각 제외) 기록
   appendRow_(SHEET_REQUEST, [
     now,
     '반납신청',
@@ -300,7 +302,7 @@ function handleReturnRequest_(p) {
  * @return {Object} 처리 결과
  */
 function handleConsumableRequest_(p) {
-  var now = new Date()
+  var now = stamp_() // 시트에 날짜만(시각 제외) 기록
   appendRow_(SHEET_REQUEST, [
     now,
     '소모품신청',
@@ -328,7 +330,7 @@ function handleConsumableRequest_(p) {
  * @return {Object} 처리 결과
  */
 function handleAssetSwapRequest_(p) {
-  var now = new Date()
+  var now = stamp_() // 시트에 날짜만(시각 제외) 기록
   var detail = ''
   if (p.category) detail += '교체희망: ' + p.category
   if (p.note) detail += (detail ? ' / ' : '') + p.note
@@ -403,7 +405,7 @@ function handleRequestUpdate_(p) {
   sheet.getRange(row, 9).setValue(p.status || '접수')
   sheet.getRange(row, 10).setValue(p.method || '')
   sheet.getRange(row, 11).setValue(p.note || '')
-  sheet.getRange(row, 12).setValue(new Date())
+  sheet.getRange(row, 12).setValue(stamp_()) // 처리일시: 날짜만(시각 제외)
   return { ok: true }
 }
 
@@ -745,6 +747,15 @@ function formatDateCell_(value) {
   return value ? String(value).slice(0, 10) : ''
 }
 
+/**
+ * 오늘 날짜를 'yyyy-MM-dd' 문자열로 반환합니다.
+ * 시트 '일시' 칸에 Date 객체 대신 이 값을 넣으면 셀에 시각 없이 날짜만 표시됩니다.
+ * @return {string} 오늘 날짜(yyyy-MM-dd)
+ */
+function stamp_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd')
+}
+
 // ===== 요청 처리 =====
 
 /**
@@ -754,7 +765,7 @@ function formatDateCell_(value) {
  * @return {Object} 처리 결과 (부여된 자산번호 포함)
  */
 function handleAssetRegister_(p) {
-  var now = new Date()
+  var now = stamp_() // 시트에 날짜만(시각 제외) 기록
   var assetNumber = generateAssetNumber_()
   appendRow_(SHEET_ASSET, [
     now, //                0 등록일시
@@ -820,7 +831,7 @@ function handleAssetUpdate_(p) {
 
     if (beforeStatus !== p.status) {
       appendRow_(SHEET_LOG, [
-        new Date(),
+        stamp_(),
         '자산변경',
         p.manager || '',
         p.assetNumber,
@@ -833,7 +844,7 @@ function handleAssetUpdate_(p) {
     // 사용자 배정 변경(불출/반납) 추적: 홍길동 → 김춘향 / 홍길동 → (반납)
     if (String(beforeUser || '') !== String(p.user || '')) {
       appendRow_(SHEET_LOG, [
-        new Date(),
+        stamp_(),
         '자산배정',
         p.manager || '',
         p.assetNumber,
@@ -860,7 +871,7 @@ function handleRentalReturn_(p) {
   for (var i = 1; i < values.length; i++) {
     if (values[i][1] !== p.assetNumber) continue
     var row = i + 1
-    var today = new Date()
+    var today = stamp_() // 반납일: 날짜만(시각 제외)
     sheet.getRange(row, 26).setValue(today) // 25 반납일 (1-based 26)
     var rent = p.monthlyRent || values[i][22] || ''
     var company = p.rentalCompany || values[i][16] || ''
@@ -908,12 +919,12 @@ function handleRepairUpdate_(p) {
     sheet.getRange(row, 10).setValue(p.status || '') //   9 진행상태
     sheet.getRange(row, 11).setValue(p.assignee || '') // 10 담당자
     if (p.status === '완료') {
-      sheet.getRange(row, 12).setValue(new Date()) //     11 처리완료일
+      sheet.getRange(row, 12).setValue(stamp_()) //     11 처리완료일(날짜만)
     }
 
     if (beforeStatus !== p.status) {
       appendRow_(SHEET_LOG, [
-        new Date(),
+        stamp_(),
         '수리접수',
         p.assignee || '',
         p.ticketNumber,
@@ -942,7 +953,7 @@ function handleRepairDispatch_(p) {
     var row = i + 1
     sheet.getRange(row, 13).setValue('Y') // 13번째 열(0-based 12): 외부전달
     appendRow_(SHEET_LOG, [
-      new Date(),
+      stamp_(),
       '수리접수',
       '총무팀',
       p.ticketNumber,
@@ -962,7 +973,8 @@ function handleRepairDispatch_(p) {
  * @return {Object} 처리 결과 (접수번호 포함)
  */
 function handleRepairRequest_(p) {
-  var now = new Date()
+  var now = new Date() // 접수번호 생성에 사용(날짜+시각 필요)
+  var stamp = stamp_() // 시트 '접수일시' 칸에 넣을 날짜만 문자열(시각 제외)
   var ticketNumber = generateTicketNumber_(now)
 
   // 사진: images(data URL)가 오면 Drive에 업로드하고 공개 URL을 저장, 없으면 파일명 폴백.
@@ -979,7 +991,7 @@ function handleRepairRequest_(p) {
   }
 
   appendRow_(SHEET_REPAIR, [
-    now,
+    stamp,
     ticketNumber,
     p.requesterName,
     p.department,
@@ -997,7 +1009,7 @@ function handleRepairRequest_(p) {
   ])
 
   // 모든 접수는 변경로그에 남겨 추적성을 확보합니다.
-  appendRow_(SHEET_LOG, [now, '수리접수', p.requesterName, ticketNumber, '진행상태', '', '접수', '신규 접수'])
+  appendRow_(SHEET_LOG, [stamp, '수리접수', p.requesterName, ticketNumber, '진행상태', '', '접수', '신규 접수'])
 
   notifySlack_('🛠️ *새 수리 접수* ' + ticketNumber + '\n' + p.assetNumber + ' - ' + p.symptom)
 

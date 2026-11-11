@@ -63,6 +63,7 @@ export default function UsersListPage() {
               <tr>
                 <th>사번</th>
                 <th>이름</th>
+                <th>본부</th>
                 <th>부서</th>
                 <th>직급</th>
                 <th>이메일</th>
@@ -71,7 +72,7 @@ export default function UsersListPage() {
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <EmptyState icon={Users} title="등록된 사용자가 없습니다." hint="우측 상단 ‘사용자 등록’으로 추가하세요." />
                   </td>
                 </tr>
@@ -80,6 +81,7 @@ export default function UsersListPage() {
                 <tr key={u.id} className="users-row" onClick={() => openEdit(u)}>
                   <td>{u.id}</td>
                   <td>{u.name}</td>
+                  <td>{u.division}</td>
                   <td>{u.department}</td>
                   <td>{u.position}</td>
                   <td>{u.email}</td>

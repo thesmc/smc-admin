@@ -1,4 +1,5 @@
 import type { AssetRow } from '@/features/asset/types'
+import { computeDepreciation } from '@/config/depreciation'
 
 /** 보고서에 함께 표기할 메타 정보(제목·필터 요약·생성시각). */
 export interface ReportMeta {
@@ -8,6 +9,12 @@ export interface ReportMeta {
   filterSummary: string
   /** 생성 시각(사람이 읽는 형식). */
   generatedAt: string
+}
+
+/** 보고서 컬럼(헤더 + 자산에서 값 추출). */
+interface Column {
+  header: string
+  get: (a: AssetRow) => string
 }
 
 /** CSV 셀 하나를 이스케이프합니다. (쉼표·따옴표·줄바꿈 방어) */
@@ -25,8 +32,15 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
-/** 보고서 컬럼 정의(헤더 + 자산에서 값 추출). CSV·인쇄가 동일 컬럼을 쓰도록 한 곳에서 정의. */
-const COLUMNS: { header: string; get: (a: AssetRow) => string }[] = [
+/** 숫자를 천단위 콤마 금액 문자열로. */
+function won(n: number): string {
+  return Math.round(n).toLocaleString('ko-KR')
+}
+
+// ===== 컬럼 정의 =====
+
+/** 자산 보고서(전체 명세) 컬럼. */
+const ASSET_COLUMNS: Column[] = [
   { header: '자산번호', get: (a) => a.assetNumber },
   { header: '자산명', get: (a) => a.name },
   { header: '구분', get: (a) => a.category },
@@ -45,24 +59,47 @@ const COLUMNS: { header: string; get: (a: AssetRow) => string }[] = [
   { header: '비고', get: (a) => a.note },
 ]
 
-/** 인쇄 표에 쓸 핵심 컬럼(가로 지면에 맞게 축약). */
-const PRINT_COLUMNS = COLUMNS.filter((c) =>
+/** 자산 보고서 인쇄용 축약 컬럼. */
+const ASSET_PRINT_COLUMNS = ASSET_COLUMNS.filter((c) =>
   ['자산번호', '자산명', '구분', '취득구분', '취득일', '사용자', '부서', '위치', '상태'].includes(c.header),
 )
 
+/** 회계장부(감가상각) 컬럼. 취득자산·취득가액·잔존가·내용연수·폐기일자. 정액법·기준일=오늘. */
+const LEDGER_COLUMNS: Column[] = [
+  { header: '자산번호', get: (a) => a.assetNumber },
+  { header: '취득자산', get: (a) => a.name },
+  { header: '구분', get: (a) => a.category },
+  { header: '취득일', get: (a) => a.acquiredDate },
+  { header: '취득가액', get: (a) => won(computeDepreciation(a).cost) },
+  { header: '내용연수', get: (a) => `${computeDepreciation(a).usefulLife}년` },
+  { header: '경과연수', get: (a) => `${computeDepreciation(a).elapsedYears.toFixed(1)}년` },
+  { header: '잔존가', get: (a) => won(computeDepreciation(a).residual) },
+  { header: '폐기일자', get: (a) => a.disposalDate },
+]
+
+/** 보고서 종류. */
+export type ReportKind = 'asset' | 'ledger'
+
+/** 종류별 컬럼(CSV=전체, 인쇄=축약). */
+function columnsFor(kind: ReportKind): { csv: Column[]; print: Column[] } {
+  if (kind === 'ledger') return { csv: LEDGER_COLUMNS, print: LEDGER_COLUMNS }
+  return { csv: ASSET_COLUMNS, print: ASSET_PRINT_COLUMNS }
+}
+
+// ===== 내보내기 =====
+
 /**
- * 자산 목록을 CSV(엑셀) 파일로 내려받습니다.
- * Excel의 한글 깨짐을 막기 위해 UTF-8 BOM(0xFEFF)을 앞에 붙입니다.
+ * 선택한 종류의 보고서를 CSV(엑셀) 파일로 내려받습니다.
+ * Excel 한글 깨짐 방지를 위해 UTF-8 BOM(0xFEFF)을 앞에 붙입니다.
  *
  * @param rows - 내보낼 자산 목록(이미 필터 적용됨)
+ * @param kind - 보고서 종류(asset|ledger)
  * @param filename - 저장 파일명(.csv 포함)
  */
-export function downloadAssetCsv(rows: AssetRow[], filename: string): void {
-  const lines = [COLUMNS.map((c) => c.header).join(',')]
-  for (const a of rows) {
-    lines.push(COLUMNS.map((c) => csvCell(c.get(a))).join(','))
-  }
-  // Excel이 UTF-8로 인식하도록 BOM을 코드로 생성해 앞에 붙임(소스에 보이지 않는 문자 방지)
+export function downloadReportCsv(rows: AssetRow[], kind: ReportKind, filename: string): void {
+  const columns = columnsFor(kind).csv
+  const lines = [columns.map((c) => c.header).join(',')]
+  for (const a of rows) lines.push(columns.map((c) => csvCell(c.get(a))).join(','))
   const bom = String.fromCharCode(0xfeff)
   const blob = new Blob([bom + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -76,24 +113,30 @@ export function downloadAssetCsv(rows: AssetRow[], filename: string): void {
 }
 
 /**
- * 자산 보고서를 새 창에 표로 그린 뒤 인쇄 대화상자를 엽니다.
- * 사용자는 인쇄 대화상자에서 'PDF로 저장'을 선택해 PDF를 받습니다.
- * (클라이언트 한글 PDF 폰트 임베드 없이도 깨짐 없이 PDF를 얻는 방법)
+ * 선택한 종류의 보고서를 새 창에 표로 그린 뒤 인쇄 대화상자를 엽니다.
+ * 사용자는 '인쇄' 대화상자에서 'PDF로 저장'을 선택해 PDF를 받습니다.
  *
  * @param rows - 인쇄할 자산 목록(이미 필터 적용됨)
+ * @param kind - 보고서 종류(asset|ledger)
  * @param meta - 제목·필터 요약·생성시각
  */
-export function printAssetReport(rows: AssetRow[], meta: ReportMeta): void {
+export function printReport(rows: AssetRow[], kind: ReportKind, meta: ReportMeta): void {
   const win = window.open('', '_blank', 'width=1000,height=720')
   if (!win) {
     window.alert('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도해주세요.')
     return
   }
 
-  const head = PRINT_COLUMNS.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')
+  const columns = columnsFor(kind).print
+  const head = columns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')
   const body = rows
-    .map((a) => `<tr>${PRINT_COLUMNS.map((c) => `<td>${escapeHtml(c.get(a))}</td>`).join('')}</tr>`)
+    .map((a) => `<tr>${columns.map((c) => `<td>${escapeHtml(c.get(a))}</td>`).join('')}</tr>`)
     .join('\n')
+
+  const note =
+    kind === 'ledger'
+      ? '<div class="meta">※ 정액법·잔존가액 0·기준일=오늘 기준 계산값입니다. 내용연수는 품목별 기본표를 따릅니다.</div>'
+      : ''
 
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8" />
 <title>${escapeHtml(meta.title)}</title>
@@ -117,6 +160,7 @@ export function printAssetReport(rows: AssetRow[], meta: ReportMeta): void {
   <h1>${escapeHtml(meta.title)}</h1>
   <div class="meta">${escapeHtml(meta.filterSummary)}</div>
   <div class="meta">생성: ${escapeHtml(meta.generatedAt)}</div>
+  ${note}
   <div class="count">총 ${rows.length}건</div>
   ${
     rows.length === 0

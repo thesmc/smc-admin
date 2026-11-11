@@ -43,7 +43,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <div className="auth-left">
           <form className="auth-card" onSubmit={handleSubmit}>
             <div className="auth-brand">
-              The SMC <span>Admin Platform</span>
+              The SMC <span>Platform</span>
             </div>
             <p className="auth-desc">비밀번호를 입력하세요.</p>
             <input

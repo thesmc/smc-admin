@@ -27,14 +27,20 @@ interface UserFormModalProps {
 export default function UserFormModal({ user, onClose, onSaved }: UserFormModalProps) {
   const isNew = user === null
   const [saving, setSaving] = useState(false)
-  const { departmentOptions } = useOrgSettings()
+  const { divisions, departmentOptions } = useOrgSettings()
   const { values, setField } = useForm<UserRow>({
     id: user?.id ?? '',
     name: user?.name ?? '',
+    division: user?.division ?? '',
     department: user?.department ?? '',
     position: user?.position ?? '',
     email: user?.email ?? '',
   })
+
+  // 본부를 고르면 그 본부의 팀만 부서 후보로 좁힘(미선택 시 전체 팀)
+  const deptOptions = values.division
+    ? (divisions.find((d) => d.name === values.division)?.teams ?? [])
+    : departmentOptions
 
   const canSave = values.id.trim() !== '' && values.name.trim() !== ''
 
@@ -80,12 +86,25 @@ export default function UserFormModal({ user, onClose, onSaved }: UserFormModalP
         <FormField label="이름" htmlFor="u-name" required>
           <TextInput id="u-name" value={values.name} onChange={(v) => setField('name', v)} />
         </FormField>
+        <FormField label="본부" htmlFor="u-div">
+          <SelectField
+            id="u-div"
+            value={values.division}
+            onChange={(v) => {
+              setField('division', v)
+              setField('department', '') // 본부 변경 시 부서 초기화(어긋나는 팀 방지)
+            }}
+            options={divisions.map((d) => d.name)}
+            placeholder="본부 선택"
+          />
+        </FormField>
         <FormField label="부서" htmlFor="u-dept">
           <SelectField
             id="u-dept"
             value={values.department}
             onChange={(v) => setField('department', v)}
-            options={departmentOptions}
+            options={deptOptions}
+            placeholder="부서(팀) 선택"
           />
         </FormField>
         <FormField label="직급" htmlFor="u-pos">

@@ -43,7 +43,7 @@ export default function AuthSettingsSection() {
   }
 
   return (
-    <Card title="로그인 비밀번호 관리">
+    <Card title="로그인 비밀번호 관리" collapsible storageKey="set.auth">
       <p className="auth-set-desc">
         역할별 로그인 비밀번호를 변경합니다. 비밀번호는 <b>암호화(SHA-256)되어 저장</b>되며 평문은 저장되지 않습니다.
         변경 즉시 모든 기기에 적용됩니다.

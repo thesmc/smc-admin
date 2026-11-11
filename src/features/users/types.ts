@@ -4,6 +4,8 @@ export interface UserRow {
   id: string
   /** 이름. */
   name: string
+  /** 소속 본부. */
+  division: string
   /** 소속 부서. */
   department: string
   /** 직급. */

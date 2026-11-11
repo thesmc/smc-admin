@@ -5,7 +5,7 @@ import LoadingState from '@/components/feedback/LoadingState'
 import { useAssets } from '@/features/asset/useAssets'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useMasterCodes } from '@/hooks/useMasterCodes'
-import { downloadAssetCsv, printAssetReport } from './reportExport'
+import { downloadReportCsv, printReport, type ReportKind } from './reportExport'
 import './ReportModal.css'
 
 /** {@link ReportModal} 컴포넌트 props. */
@@ -36,6 +36,8 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const { divisions, departmentOptions } = useOrgSettings()
   const { codes } = useMasterCodes()
 
+  // 보고서 종류: 자산 명세 / 회계장부(감가상각)
+  const [kind, setKind] = useState<ReportKind>('asset')
   // 필터 상태(모두 문자열 — 빈 값은 '전체'를 의미)
   const [periodOn, setPeriodOn] = useState(false)
   const [dateFrom, setDateFrom] = useState('')
@@ -91,17 +93,20 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     return parts.join(' · ')
   }
 
+  const reportTitle = kind === 'ledger' ? 'The SMC 회계장부(감가상각)' : 'The SMC 자산 보고서'
+  const fileBase = kind === 'ledger' ? '회계장부' : '자산보고서'
+
   function handleCsv() {
     if (filtered.length === 0) {
       window.alert('조건에 맞는 자산이 없습니다.')
       return
     }
-    downloadAssetCsv(filtered, `자산보고서_${todayStamp()}.csv`)
+    downloadReportCsv(filtered, kind, `${fileBase}_${todayStamp()}.csv`)
   }
 
   function handlePrint() {
-    printAssetReport(filtered, {
-      title: 'The SMC 자산 보고서',
+    printReport(filtered, kind, {
+      title: reportTitle,
       filterSummary: buildSummary(),
       generatedAt: new Date().toLocaleString('ko-KR'),
     })
@@ -112,6 +117,29 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       {loading && <LoadingState message="자산 데이터 불러오는 중…" />}
       {!loading && usingMock && (
         <p className="report-mock">※ 샘플(mock) 데이터 기준입니다. 실제 시트 연동 시 실데이터로 집계됩니다.</p>
+      )}
+
+      <div className="report-kind">
+        <button
+          type="button"
+          className={`report-kind-tab ${kind === 'asset' ? 'active' : ''}`}
+          onClick={() => setKind('asset')}
+        >
+          자산 명세
+        </button>
+        <button
+          type="button"
+          className={`report-kind-tab ${kind === 'ledger' ? 'active' : ''}`}
+          onClick={() => setKind('ledger')}
+        >
+          회계장부(감가상각)
+        </button>
+      </div>
+      {kind === 'ledger' && (
+        <p className="report-ledger-note">
+          취득자산·취득가액·내용연수·잔존가·폐기일자를 정액법(잔존가액 0, 기준일=오늘)으로 계산합니다.
+          내용연수는 품목별 기본표(노트북·PC 4년 / 모니터·주변기기 5년 등)를 따릅니다.
+        </p>
       )}
 
       <div className="report-filters">

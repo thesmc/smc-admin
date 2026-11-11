@@ -58,36 +58,39 @@ export default function MasterPage() {
   }
 
   return (
-    <Card
-      title="코드(Master) 관리"
-      action={
-        <div className="master-actions">
-          <button type="button" className="master-btn" onClick={handleReset} disabled={saving}>
-            <RotateCcw size={14} /> 기본값
-          </button>
-          <button type="button" className="master-btn primary" onClick={handleSave} disabled={saving}>
-            <Save size={14} /> {saving ? '저장 중…' : '저장'}
-          </button>
-        </div>
-      }
-    >
-      <p className="master-desc">
-        자산 구분·렌탈사·소모품 품목·제조사 선택지를 관리합니다. 저장하면 등록/신청 폼의 선택 항목에 반영됩니다.
-        <br />
-        (자산 상태·수리 우선순위처럼 색상과 묶인 값은 안정성을 위해 코드에서 고정 관리합니다.)
-      </p>
+    <div className="master-stack">
+      <Card
+        title="코드(Master) 관리"
+        action={
+          <div className="master-actions">
+            <button type="button" className="master-btn" onClick={handleReset} disabled={saving}>
+              <RotateCcw size={14} /> 기본값
+            </button>
+            <button type="button" className="master-btn primary" onClick={handleSave} disabled={saving}>
+              <Save size={14} /> {saving ? '저장 중…' : '저장'}
+            </button>
+          </div>
+        }
+      >
+        <p className="master-desc">
+          자산 구분·렌탈사·소모품 품목·제조사 선택지를 관리합니다. 저장하면 등록/신청 폼의 선택 항목에 반영됩니다.
+          <br />
+          (자산 상태·수리 우선순위처럼 색상과 묶인 값은 안정성을 위해 코드에서 고정 관리합니다.)
+          <br />※ 각 그룹 제목을 눌러 접고 펼 수 있습니다.
+        </p>
+      </Card>
 
+      {/* 그룹별 접이식 카드 — 길이가 길어 섹션 단위로 접을 수 있게 함(상태 기억) */}
       {GROUPS.map((g) => (
-        <section key={g.key} className="master-group">
-          <h3 className="master-group-title">{g.label}</h3>
+        <Card key={g.key} title={g.label} collapsible storageKey={`master.${g.key}`}>
           <StringListEditor
             items={draft[g.key]}
             onChange={(items) => setGroup(g.key, items)}
             placeholder={g.placeholder}
           />
-        </section>
+        </Card>
       ))}
-    </Card>
+    </div>
   )
 }
 

@@ -8,6 +8,37 @@
   margin: 0 0 12px;
 }
 
+.report-kind {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.report-kind-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-sub);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.report-kind-tab.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.report-ledger-note {
+  font-size: 12px;
+  color: var(--color-text-sub);
+  background: var(--color-bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
 .report-filters {
   display: flex;
   flex-direction: column;
