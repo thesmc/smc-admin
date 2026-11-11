@@ -9,12 +9,33 @@ import { getFromGas, isMockMode, submitToGas, type GasResult } from '@/lib/gasCl
  */
 
 const STORAGE_KEY = 'smc.auth.hashes'
+/** '비밀번호 없이 입장' 허용 플래그 캐시 키. */
+const GUEST_KEY = 'smc.auth.guest'
 
 /** 비밀번호 설정 변경 알림 이벤트명. */
 export const AUTH_SETTINGS_EVENT = 'smc:auth-settings'
 
 /** 역할 → 해시 부분 맵. */
 export type HashOverrides = Partial<Record<Role, string>>
+
+/** 저장된 '비밀번호 없이 입장' 허용 여부를 읽습니다.(기본 false) */
+export function readGuestEnabled(): boolean {
+  try {
+    return localStorage.getItem(GUEST_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** '비밀번호 없이 입장' 허용 여부를 캐시에 저장하고 이벤트를 발행합니다. */
+function writeGuestEnabled(on: boolean): void {
+  try {
+    localStorage.setItem(GUEST_KEY, on ? '1' : '0')
+  } catch {
+    // 저장 실패는 무시(이벤트만 발행)
+  }
+  window.dispatchEvent(new Event(AUTH_SETTINGS_EVENT))
+}
 
 /** 저장된 오버라이드 해시맵을 읽습니다. */
 export function readAuthOverrides(): HashOverrides {
@@ -46,10 +67,18 @@ export function getEffectiveHashes(): Record<Role, string> {
 
 // ===== 서버(시트) 동기화 =====
 
+/** 서버에 저장되는 인증 블롭: 역할별 해시 오버라이드 + guestEnabled 플래그. */
+type AuthBlob = HashOverrides & { guestEnabled?: boolean }
+
 /** GAS `?action=authSettings` 응답 형식. */
 interface AuthSettingsResponse {
   ok?: boolean
-  auth?: HashOverrides | null
+  auth?: AuthBlob | null
+}
+
+/** 저장용 전체 페이로드(현재 캐시된 해시 오버라이드 + guest 플래그)를 만듭니다. */
+function buildAuthPayload(overrides: HashOverrides, guestEnabled: boolean): AuthBlob {
+  return { ...overrides, guestEnabled }
 }
 
 let pullInflight: Promise<boolean> | null = null
@@ -67,7 +96,10 @@ export function pullAuthFromServer(): Promise<boolean> {
       const json = (await getFromGas({ action: 'authSettings' })) as AuthSettingsResponse | null
       pulledOnce = true
       if (json && json.ok && json.auth) {
-        writeAuthOverrides(json.auth)
+        // 서버 블롭을 역할 해시(overrides)와 guestEnabled 플래그로 분리해 각각 캐시에 반영
+        const { guestEnabled, ...overrides } = json.auth
+        writeAuthOverrides(overrides)
+        writeGuestEnabled(!!guestEnabled)
         return true
       }
       return false
@@ -93,8 +125,24 @@ export async function saveRolePasswordHash(role: Role, hash: string): Promise<Ga
     writeAuthOverrides(next)
     return { ok: true }
   }
-  // 서버 저장이 성공한 경우에만 로컬 캐시에 반영(실패 시 로컬 비번이 잘못 바뀌지 않도록)
-  const result = await submitToGas('authSettingsUpdate', next)
+  // guestEnabled도 함께 보내 서버에서 유실되지 않도록 함(현재 캐시값 유지)
+  const result = await submitToGas('authSettingsUpdate', buildAuthPayload(next, readGuestEnabled()))
   if (result.ok) writeAuthOverrides(next)
+  return result
+}
+
+/**
+ * '비밀번호 없이 입장' 허용 여부를 저장합니다.(서버 + 로컬 캐시, 모든 기기 공유)
+ * @param on - 허용 여부
+ * @returns 서버 응답
+ */
+export async function saveGuestEnabled(on: boolean): Promise<GasResult> {
+  if (isMockMode()) {
+    writeGuestEnabled(on)
+    return { ok: true }
+  }
+  // 비밀번호 해시 오버라이드도 함께 보내 서버에서 유실되지 않도록 함
+  const result = await submitToGas('authSettingsUpdate', buildAuthPayload(readAuthOverrides(), on))
+  if (result.ok) writeGuestEnabled(on)
   return result
 }

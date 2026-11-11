@@ -12,7 +12,7 @@ import './AuthGate.css'
  * @returns 로그인 화면 또는 앱
  */
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { role, error, signIn, signOut } = useRoleAuth()
+  const { role, error, guestEnabled, signIn, enterGuest, signOut } = useRoleAuth()
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -58,6 +58,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               {busy ? '확인 중…' : '로그인'}
             </button>
             {error && <p className="auth-error">{error}</p>}
+
+            {/* '비밀번호 없이 입장' 토글(설정·서버 공유)이 켜진 동안만 노출 → 총무팀으로 바로 입장 */}
+            {guestEnabled && (
+              <button type="button" className="auth-guest" onClick={enterGuest} disabled={busy}>
+                비밀번호 없이 입장 (총무팀)
+              </button>
+            )}
           </form>
         </div>
 

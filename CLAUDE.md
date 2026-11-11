@@ -192,6 +192,7 @@ src/
 > - 🧩 공통 피드백 컴포넌트: `components/feedback/LoadingState·EmptyState·MockNotice`(목록 화면 로딩/빈상태/mock 배너 통일).
 > - ✅ **UI 다듬기(2026-09-10) 완료분**: 빈상태·로딩 통일 / 로그인 영상 **poster**(`login_bg_poster.jpg`, 깜빡임 제거) / **모바일 좌우밀림 방지**(global.css: html·body·#root `overflow-x:hidden`·`overscroll-behavior-x:none` + 전역 `box-sizing:border-box`) / **대시보드 섹션 그룹 헤딩**(`dash-section`/`dash-section-title`: 현황 요약·자산 현황·최근 이동).
 >
+> - ✅ **2026-11-11 추가요청 완료분** _(⚠️ GAS `v26-guest-access` 재배포 필요)_: **'비밀번호 없이 입장' 임시 개방 토글**. 설정 화면 `GuestAccessSection`(서버 저장, 모든 기기 공유) → 켜면 로그인 화면(`AuthGate`)에 **'비밀번호 없이 입장(총무팀)' 버튼** 노출 → `enterGuest`가 admin으로 입장(localStorage `smc.role.guest='1'` 표시). 끄면 guest로 들어온 세션은 새로고침·재방문 시 무효화(`loadRole`에서 토글 OFF면 세션 제거). 비밀번호 로그인 세션은 유지. 서버 저장은 기존 `10_로그인설정` A1 JSON에 `guestEnabled` 필드 추가(`authSettings.ts`: `readGuestEnabled`/`saveGuestEnabled`, GAS `handleAuthSettingsUpdate_`가 `guestEnabled` 보존). ⚠️ 보안: 켜 둔 동안 접근 제어 사실상 해제 — 필요할 때만 켜고 바로 끌 것.
 > - ✅ **2026-11-08 추가요청 (2차) 완료·배포·검증 완료** _(GAS 변경 없음 — 재배포 불필요, 프론트만 배포)_: ①`/vendor` 상세에 **사용자 현재 위치 표시**(v25에 이미 반영, 접수분부터). ②구글슬라이드 자리배치도 자동 추적 → **보류**(사용자 결정: 슬라이드 자유도형이라 특정 인원 자동 크롭 불안정 + GAS Slides 권한 필요). ③`/admin` **수리관리 목록에서 완료 건 숨김**(`RepairListPage`가 `status!=='완료'`만 표시, 상세에서 완료 저장 시 즉시 사라짐 — 시트·요약카드엔 완료로 남음). ④대시보드 바로가기 **'보고서 조회' → `ReportModal`**(전체/자산등록 기간·본부·부서·품목·사용자 필터 → **CSV(엑셀, UTF-8 BOM) 다운로드** + **인쇄→PDF 저장**, `features/dashboard/report/`). ⑤**자산 라벨 일괄 인쇄 300dpi 최적화**(도시바 B-FV4·50×30mm: QR 400px·여백 2모듈, `print-color-adjust:exact`, 용지=라벨 고정, 인쇄설정 안내문구). 버튼·로직은 기존 `printAssetLabels` 그대로.
 > - ✅ **2026-11-08 추가요청 (1차) 완료분**: ①직원 신청 **모든 탭(자산/소모품/반납/교체)+수리요청**에 **이메일·현재 위치** 입력 추가 → `6_신청기록` 12(이메일)/13(위치)열, `1_수리접수기록` 13(이메일)/14(위치)열 저장. 신청관리·수리 상세 모달에 표시. ②수리요청 시 **총무팀(`ADMIN_EMAIL`=hoon2@thesmc.co.kr)에게 접수 알림 메일** + **신청자에게 접수확인 메일** 2종 발송. ③수리요청 **완료 팝업 즉시 표시**(사진 업로드가 길어 중복 접수되던 문제 — `submitting` 가드 + 버튼 `disabled`/‘접수 중…’). ④외부업체 `/vendor` 상세에 **진행상황 드롭다운(확인/수리중/완료)+저장**(`updateRepair`, 담당자=외부업체) → **완료 시 목록에서 제거**(`vendorRepairs` 필터 `dispatched && status!=='완료'`, 시트엔 완료 기록). `REPAIR_STATUSES`에 `확인` 추가. **GAS `v25-request-contact` (✅ 배포·검증 완료 — 프론트 캐시만 강력새로고침/시크릿창으로 비우면 즉시 반영).**
 > - ✅ **2026-09-11 추가요청 완료분**: 알림 벨 실신청 연동(미확인 뱃지+모두확인 읽음처리, localStorage) / 대시보드 신청현황·폐기예정 **실데이터 연동**(GAS `v24-dashboard-live`, 실모드에선 mock 미혼합) / 자산검색 보강+**사용자/상태 필터 드롭다운**+결과건수 / **목록 key 중복 잔상 버그 수정**(index 포함) / index.html **캐시 무효화 메타**(배포 즉시 반영) / 직원 신청 **다건 입력**(자산·반납·교체, `submitRequestBatch`). **수리 다건은 보류**(사진·증상이 자산별로 달라 별도 설계 필요).
@@ -211,7 +212,7 @@ src/
 > 로그인 영상 추가 압축/poster가 필요하면 로컬 ffmpeg로 재인코딩 가능(위 로그인 화면 메모 참고).
 
 > GAS 재배포로 URL이 바뀌면 `src/config/api.ts`의 `GAS_URL`도 갱신해야 함.
-> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v25-request-contact` (✅ 2026-11-08 재배포·검증 완료 — 신청/수리 이메일·현재위치 저장, 수리 관리자+신청자 메일, 외부업체 완료 제외).**
+> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v25-request-contact` / 코드 최신: `v26-guest-access` (⚠️ 재배포 필요 — `handleAuthSettingsUpdate_`에 `guestEnabled` 저장. 재배포 전엔 '비밀번호 없이 입장' 토글이 서버에 유지 안 됨).**
 
 ## 🔀 역할 기반 개편 로드맵 (진행 중)
 

@@ -5,6 +5,7 @@ import { LOCKED_MODULE_IDS, isModuleVisible } from '@/app/moduleVisibility'
 import { useModuleVisibility } from '@/hooks/useModuleVisibility'
 import OrgSettingsSection from './OrgSettingsSection'
 import AuthSettingsSection from './AuthSettingsSection'
+import GuestAccessSection from './GuestAccessSection'
 import './SettingsPage.css'
 
 /**
@@ -66,6 +67,7 @@ export default function SettingsPage() {
 
       <OrgSettingsSection />
       <AuthSettingsSection />
+      <GuestAccessSection />
     </div>
   )
 }

@@ -170,7 +170,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v25-request-contact',
+    version: 'v26-guest-access',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -497,6 +497,8 @@ function handleAuthSettingsUpdate_(p) {
   if (p.admin) payload.admin = p.admin
   if (p.employee) payload.employee = p.employee
   if (p.vendor) payload.vendor = p.vendor
+  // guestEnabled: 비밀번호 없이 입장 허용 토글(불리언). false도 보존해야 하므로 undefined만 제외.
+  if (typeof p.guestEnabled !== 'undefined') payload.guestEnabled = !!p.guestEnabled
   sheet.getRange(1, 1).setValue(JSON.stringify(payload))
   return { ok: true }
 }
