@@ -54,15 +54,16 @@ const LABEL_STYLE = `
   /* 프린터 드라이버가 임의 여백을 넣지 못하도록 용지=라벨 크기로 고정 */
   html, body { margin: 0; padding: 0; width: 50mm; }
   @page { size: 50mm 30mm; margin: 0; }
-  .label { width: 50mm; height: 30mm; padding: 1.5mm; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 0.8mm; overflow: hidden;
+  /* 로고·QR·자산번호를 라벨 정중앙에 세로로 정렬. QR을 최대한 크게(21mm). */
+  .label { width: 50mm; height: 30mm; padding: 1mm; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.3mm; overflow: hidden; text-align: center;
     /* 열전사는 1비트 출력 — 검정이 흐려지지 않게 색 보존 강제 */
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .logo { font-size: 10pt; letter-spacing: 0.5px; }
+  .logo { font-size: 8pt; letter-spacing: 0.5px; }
   .logo b { font-weight: 800; }
-  .logo-img { height: 4.5mm; width: auto; object-fit: contain; }
-  .qr { width: 18mm; height: 18mm; }
-  .num { font-size: 9pt; font-weight: 800; letter-spacing: 0.3px; }
+  .logo-img { height: 3mm; width: auto; object-fit: contain; }
+  .qr { width: 21mm; height: 21mm; }
+  .num { font-size: 8pt; font-weight: 800; letter-spacing: 0.3px; }
   @media print {
     /* 라벨마다 한 페이지(장)씩 인쇄. 마지막은 빈 페이지 방지. */
     .label { page-break-after: always; }
