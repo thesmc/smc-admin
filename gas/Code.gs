@@ -26,8 +26,17 @@ var API_TOKEN = PropertiesService.getScriptProperties().getProperty('API_TOKEN')
 /** Slack Incoming Webhook URL. 비우면 Slack 알림을 건너뜁니다. */
 var SLACK_WEBHOOK_URL = ''
 
-/** 수리 접수 알림을 받을 총무팀(관리자) 이메일. 비우면 관리자 알림을 건너뜁니다. */
+/** 수리 접수 알림을 받을 총무팀(관리자) 이메일(=받는사람). 비우면 관리자 알림을 건너뜁니다. */
 var ADMIN_EMAIL = 'general_affairs@thesmc.co.kr'
+
+/**
+ * 메일 보낸사람(From) 주소/이름.
+ * ⚠️ `SENDER_EMAIL`이 From으로 실제 적용되려면, 스크립트 소유 Gmail 계정의
+ *    [설정]→[계정]→[다른 주소에서 메일 보내기(Send mail as)]에 이 주소가 등록·인증돼 있어야 합니다.
+ *    등록 안 돼 있으면 자동으로 기존 계정 주소로 발송됩니다(sendMail_의 폴백).
+ */
+var SENDER_EMAIL = 'general_affairs@thesmc.co.kr'
+var SENDER_NAME = '총무팀'
 
 // (슬랙 챗봇·Gemini 설정은 제거됨 — 슬랙 1:1 DM 챗봇은 별도 Python 봇(Socket Mode + Claude)으로 이전.
 //  FAQ는 이 GAS가 계속 제공: GET ?action=faq / POST faqUpdate, 시트 11_FAQ. 웹앱 'FAQ/챗봇' 화면에서 편집.)
@@ -182,7 +191,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v42-request-emails',
+    version: 'v43-sender-from',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -384,7 +393,7 @@ function notifyRequestEmails_(kind, p, detail) {
   var requester = p.requester || ''
   // (1) 총무팀 접수 알림
   if (ADMIN_EMAIL) {
-    MailApp.sendEmail(
+    sendMail_(
       ADMIN_EMAIL,
       '[자산관리] 새 ' + kind + ' 접수',
       '새 ' + kind + '이(가) 접수되었습니다.\n\n' +
@@ -398,7 +407,7 @@ function notifyRequestEmails_(kind, p, detail) {
   // (2) 신청자 접수확인 — 유효한 이메일(@ 포함)만, 없으면 이름으로 조회
   var email = p.email && String(p.email).indexOf('@') !== -1 ? p.email : lookupEmailByName_(requester)
   if (email) {
-    MailApp.sendEmail(
+    sendMail_(
       email,
       '[자산관리] ' + kind + '이(가) 접수되었습니다',
       '안녕하세요 ' + requester + '님,\n\n' +
@@ -1105,7 +1114,7 @@ function handleRepairRequest_(p) {
 
   // (1) 총무팀(관리자)에게 '신청이 들어왔다'는 알림 메일.
   if (ADMIN_EMAIL) {
-    MailApp.sendEmail(
+    sendMail_(
       ADMIN_EMAIL,
       '[IT 자산관리] 새 수리 요청이 접수되었습니다 (' + ticketNumber + ')',
       '새 수리 요청이 접수되었습니다.\n\n' +
@@ -1123,7 +1132,7 @@ function handleRepairRequest_(p) {
   // (2) 신청자 이메일로 '접수되었다'는 확인 메일. 폼 입력 우선, 없으면 사용자목록에서 이름으로 조회.
   var email = (p.email && String(p.email).indexOf('@') !== -1) ? p.email : lookupEmailByName_(p.requesterName)
   if (email) {
-    MailApp.sendEmail(
+    sendMail_(
       email,
       '[IT 자산관리] 수리 요청이 접수되었습니다 (' + ticketNumber + ')',
       '안녕하세요 ' + p.requesterName + '님,\n\n' +
@@ -1296,6 +1305,35 @@ function lookupEmailByName_(name) {
     if (values[i][1] === name) return values[i][5] || '' // 5 이메일
   }
   return ''
+}
+
+/**
+ * 메일을 보냅니다. 보낸사람(From)을 SENDER_EMAIL/SENDER_NAME로 지정하되,
+ * 그 주소가 Gmail '다른 주소에서 메일 보내기(alias)'에 없으면 예외가 나므로
+ * 기본 계정 주소로 폴백 재발송합니다. (요청 처리가 메일 때문에 실패하지 않게)
+ * @param {string} to - 받는사람
+ * @param {string} subject - 제목
+ * @param {string} body - 본문(텍스트)
+ * @return {void}
+ */
+function sendMail_(to, subject, body) {
+  try {
+    MailApp.sendEmail({ to: to, subject: subject, body: body, from: SENDER_EMAIL, name: SENDER_NAME })
+  } catch (e) {
+    // from(별칭) 미등록 등으로 실패 → 보낸사람 지정 없이 기본 계정으로 발송(이름만 적용)
+    MailApp.sendEmail({ to: to, subject: subject, body: body, name: SENDER_NAME })
+  }
+}
+
+/**
+ * [테스트용] 편집기에서 직접 실행하는 함수. `ADMIN_EMAIL`(=general_affairs@)로 테스트 메일을 보냅니다.
+ * 실행 → general_affairs@ 받은편지함 확인. 오류가 나면(주소 없음/수신불가 등) 실행 로그에 사유가 표시됩니다.
+ * @return {void}
+ */
+function testMail() {
+  // 폴백 때문에 조용히 넘어가지 않도록, 여기서는 MailApp을 직접 호출해 에러를 그대로 노출.
+  MailApp.sendEmail(ADMIN_EMAIL, '[테스트] 접수 알림 메일 확인', '이 메일이 보이면 발송/수신 정상입니다. (' + ADMIN_EMAIL + ')')
+  Logger.log('테스트 메일 발송 성공 → ' + ADMIN_EMAIL)
 }
 
 /**

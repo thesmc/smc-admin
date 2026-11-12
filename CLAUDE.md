@@ -219,7 +219,10 @@ src/
 > 로그인 영상 추가 압축/poster가 필요하면 로컬 ffmpeg로 재인코딩 가능(위 로그인 화면 메모 참고).
 
 > GAS 재배포로 URL이 바뀌면 `src/config/api.ts`의 `GAS_URL`도 갱신해야 함.
-> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **코드 최신: `v42-request-emails` (⚠️ 재배포 필요). 포함: ①슬랙/Gemini 코드 제거(FAQ·자산관리 유지) ②`ADMIN_EMAIL`=`general_affairs@thesmc.co.kr`로 변경 ③직원 신청 5종 전부 접수 메일 발송 — 수리신청(기존) + 자산/소모품/반납/교체(신규 `notifyRequestEmails_`: 총무팀 알림 + 신청자 접수확인, 폼 이메일 우선·없으면 사용자목록 조회). 슬랙 DM 챗봇은 GAS가 아니라 독립 Python 봇(`Desktop\Slackbot\auto_reply.pyw`)으로 이전됨. 스크립트 속성은 `API_TOKEN`만 유지.**
+> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v42-request-emails`(= 사용자 "V45" 배포, 검증 완료) / 코드 최신: `v43-sender-from`(⚠️ 미배포 — 보낸사람 From 변경은 Gmail 별칭 선행 필요, 급하지 않음).**
+> - v42(배포·검증): ①슬랙/Gemini 코드 제거(FAQ·자산관리 유지) ②`ADMIN_EMAIL`=`general_affairs@thesmc.co.kr`(=받는사람)로 변경 ③직원 신청 5종 전부 접수 메일 — 수리신청(기존) + 자산/소모품/반납/교체(신규 `notifyRequestEmails_`: 총무팀 알림 + 신청자 접수확인, 폼 이메일 우선·없으면 사용자목록). **general_affairs@ 수신 테스트 성공(2026-11-12).**
+> - v43(코드만, 미배포): 보낸사람(From) = `SENDER_EMAIL`(general_affairs@)/`SENDER_NAME`('총무팀') — 공용 `sendMail_` 래퍼(별칭 미등록 시 기본계정으로 폴백). + 편집기 테스트 함수 `testMail`. **From 표시를 실제로 바꾸려면: hoon2 Gmail '다른 주소에서 메일 보내기'에 general_affairs@ 등록·인증 → v43 재배포.** 안 해도 받는 기능은 정상.
+> - 슬랙 DM 챗봇은 GAS가 아니라 독립 Python 봇(`Desktop\Slackbot\auto_reply.pyw`)으로 이전. 스크립트 속성은 `API_TOKEN`만 유지.
 
 ## 🔀 역할 기반 개편 로드맵 (진행 중)
 
