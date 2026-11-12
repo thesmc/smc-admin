@@ -27,36 +27,10 @@ var API_TOKEN = PropertiesService.getScriptProperties().getProperty('API_TOKEN')
 var SLACK_WEBHOOK_URL = ''
 
 /** 수리 접수 알림을 받을 총무팀(관리자) 이메일. 비우면 관리자 알림을 건너뜁니다. */
-var ADMIN_EMAIL = 'hoon2@thesmc.co.kr'
+var ADMIN_EMAIL = 'general_affairs@thesmc.co.kr'
 
-/**
- * Gemini(제미나이) API 키. 스크립트 속성 `GEMINI_API_KEY`에서 읽습니다.
- * 설정: [프로젝트 설정] → [스크립트 속성] → GEMINI_API_KEY = 발급받은 키.
- * 비우면 챗봇이 "미설정" 안내만 반환합니다.
- */
-var GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || ''
-
-/** 사용할 Gemini 모델. (빠르고 저렴한 flash 계열 권장) */
-var GEMINI_MODEL = 'gemini-2.0-flash'
-
-/**
- * 슬랙 슬래시 커맨드 검증 토큰(선택). 스크립트 속성 `SLACK_SLASH_TOKEN`.
- * 슬랙 앱의 슬래시 커맨드 설정에 표시되는 Verification Token을 넣으면,
- * 그 값과 일치하는 요청만 처리합니다. 비우면 검증을 건너뜁니다.
- */
-var SLACK_SLASH_TOKEN = PropertiesService.getScriptProperties().getProperty('SLACK_SLASH_TOKEN') || ''
-
-/** 슬랙 봇 토큰(xoxb-...). DM 응답·총무팀 알림 전송에 사용. 스크립트 속성 `SLACK_BOT_TOKEN`. */
-var SLACK_BOT_TOKEN = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN') || ''
-
-/** 슬랙 Events API 검증 토큰(선택). 스크립트 속성 `SLACK_VERIFY_TOKEN`. */
-var SLACK_VERIFY_TOKEN = PropertiesService.getScriptProperties().getProperty('SLACK_VERIFY_TOKEN') || ''
-
-/** 총무팀 슬랙 사용자 ID 목록(쉼표 구분, 예: U01ABC,U02DEF). 미해결 문의 알림 대상. 스크립트 속성 `ADMIN_SLACK_IDS`. */
-var ADMIN_SLACK_IDS = PropertiesService.getScriptProperties().getProperty('ADMIN_SLACK_IDS') || ''
-
-/** 배포된 사이트 기본 주소(링크 생성용). 끝에 슬래시 없이. */
-var SITE_BASE_URL = 'https://thesmc.github.io/smc-admin'
+// (슬랙 챗봇·Gemini 설정은 제거됨 — 슬랙 1:1 DM 챗봇은 별도 Python 봇(Socket Mode + Claude)으로 이전.
+//  FAQ는 이 GAS가 계속 제공: GET ?action=faq / POST faqUpdate, 시트 11_FAQ. 웹앱 'FAQ/챗봇' 화면에서 편집.)
 
 /**
  * 수리 사진을 저장할 Google Drive 폴더 ID.
@@ -87,18 +61,7 @@ var SHEET_FAQ = '11_FAQ' // 행: 질문 / 답변 / 키워드 (슬랙 챗봇 1차
  */
 function doPost(e) {
   try {
-    // 슬랙 슬래시 커맨드는 form-encoded(application/x-www-form-urlencoded)로 와서
-    // JSON이 아니므로, JSON 파싱 전에 먼저 분기합니다. (e.parameter.command 존재로 판별)
-    if (e && e.parameter && e.parameter.command) {
-      return handleSlackSlash_(e.parameter)
-    }
-
     var body = JSON.parse(e.postData.contents)
-
-    // 슬랙 Events API(1:1 DM 등)는 우리 API_TOKEN을 모르므로 토큰 검증 전에 분기합니다.
-    if (body.type === 'url_verification' || body.type === 'event_callback') {
-      return handleSlackEvent_(body)
-    }
 
     // 토큰이 설정된 경우, 일치하지 않는 요청은 거부합니다(무단 쓰기 차단).
     if (API_TOKEN && body.token !== API_TOKEN) {
@@ -219,7 +182,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v30-slack-dm-bot',
+    version: 'v42-request-emails',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -314,6 +277,7 @@ function handleAssetRequest_(p) {
     p.location || '', // 13 현재 위치
   ])
   notifySlack_('📝 *자산 신청* ' + (p.requester || '') + ' / ' + (p.category || ''))
+  notifyRequestEmails_('자산신청', p, '품목: ' + (p.category || '') + '\n사유: ' + (p.reason || '') + (detail ? '\n상세: ' + detail : ''))
   return { ok: true }
 }
 
@@ -341,6 +305,7 @@ function handleReturnRequest_(p) {
     p.location || '', // 13 현재 위치
   ])
   notifySlack_('📦 *반납 신청* ' + (p.requester || '') + ' / ' + (p.assetNumber || ''))
+  notifyRequestEmails_('반납신청', p, '자산번호: ' + (p.assetNumber || '') + '\n자산명: ' + (p.assetName || '') + '\n사유: ' + (p.reason || '') + (p.note ? '\n비고: ' + p.note : ''))
   return { ok: true }
 }
 
@@ -369,6 +334,7 @@ function handleConsumableRequest_(p) {
     p.location || '', // 13 현재 위치
   ])
   notifySlack_('🧴 *소모품 신청* ' + (p.requester || '') + ' / ' + (p.item || '') + ' ' + (p.qty || ''))
+  notifyRequestEmails_('소모품신청', p, '품목: ' + (p.item || '') + '\n수량: ' + (p.qty || '') + '\n사유: ' + (p.reason || ''))
   return { ok: true }
 }
 
@@ -400,7 +366,47 @@ function handleAssetSwapRequest_(p) {
     p.location || '', // 13 현재 위치
   ])
   notifySlack_('🔁 *자산 교체 신청* ' + (p.requester || '') + ' / ' + (p.assetNumber || '') + ' ' + (p.reason || ''))
+  notifyRequestEmails_('자산교체', p, '기존 자산번호: ' + (p.assetNumber || '') + '\n기존 자산명: ' + (p.assetName || '') + '\n교체희망: ' + (p.category || '') + '\n사유: ' + (p.reason || '') + (p.note ? '\n비고: ' + p.note : ''))
   return { ok: true }
+}
+
+/**
+ * 직원 신청(자산/소모품/반납/교체) 접수 시 메일 2종을 보냅니다.
+ *  (1) 총무팀(ADMIN_EMAIL)에게 접수 알림
+ *  (2) 신청자에게 접수확인 — 폼에 적은 이메일 우선, 없으면 사용자목록에서 이름으로 조회
+ * ※ 수리신청은 handleRepairRequest_에서 별도(접수번호 포함) 발송하므로 여기서 제외.
+ * @param {string} kind - 신청 종류 표기(예: '자산신청')
+ * @param {Object} p - 신청 payload (requester, department, email, location 등)
+ * @param {string} detail - 메일 본문에 넣을 요약(품목/수량/사유 등, 줄바꿈 포함)
+ * @return {void}
+ */
+function notifyRequestEmails_(kind, p, detail) {
+  var requester = p.requester || ''
+  // (1) 총무팀 접수 알림
+  if (ADMIN_EMAIL) {
+    MailApp.sendEmail(
+      ADMIN_EMAIL,
+      '[자산관리] 새 ' + kind + ' 접수',
+      '새 ' + kind + '이(가) 접수되었습니다.\n\n' +
+        '신청자: ' + requester + ' (' + (p.department || '') + ')\n' +
+        '이메일: ' + (p.email || '') + '\n' +
+        '현재 위치: ' + (p.location || '') + '\n' +
+        detail + '\n\n' +
+        '신청관리 화면에서 확인해 주세요.'
+    )
+  }
+  // (2) 신청자 접수확인 — 유효한 이메일(@ 포함)만, 없으면 이름으로 조회
+  var email = p.email && String(p.email).indexOf('@') !== -1 ? p.email : lookupEmailByName_(requester)
+  if (email) {
+    MailApp.sendEmail(
+      email,
+      '[자산관리] ' + kind + '이(가) 접수되었습니다',
+      '안녕하세요 ' + requester + '님,\n\n' +
+        kind + '이(가) 정상 접수되었습니다.\n' +
+        detail + '\n\n' +
+        '총무팀이 확인 후 처리해 드리겠습니다. 감사합니다.'
+    )
+  }
 }
 
 /**
@@ -587,204 +593,6 @@ function handleFaqUpdate_(p) {
   }
   sheet.getRange(1, 1, rows.length, 3).setValues(rows)
   return { ok: true }
-}
-
-/**
- * 슬랙 슬래시 커맨드(`/문의 질문내용`)를 처리합니다.
- * FAQ를 컨텍스트로 Gemini가 1차 답변을 생성해 즉시 응답합니다.
- * @param {Object} p - 슬랙이 보낸 form 파라미터 { command, text, token, user_name, ... }
- * @return {GoogleAppsScript.Content.TextOutput} 슬랙 메시지 JSON
- */
-function handleSlackSlash_(p) {
-  // 검증 토큰이 설정돼 있으면 일치하는 요청만 처리
-  if (SLACK_SLASH_TOKEN && p.token !== SLACK_SLASH_TOKEN) {
-    return jsonOutput_({ response_type: 'ephemeral', text: '인증 실패: 요청을 처리할 수 없습니다.' })
-  }
-  var question = (p.text || '').trim()
-  if (!question) {
-    return jsonOutput_({
-      response_type: 'ephemeral',
-      text: '궁금한 내용을 함께 입력해 주세요. 예) `/문의 노트북 수리 어떻게 신청해요?`',
-    })
-  }
-  var r = generateBotAnswer_(question)
-  // ephemeral: 질문한 사람에게만 보이도록(1차 대응).
-  return jsonOutput_({ response_type: 'ephemeral', text: buildRequesterReply_(r) })
-}
-
-/**
- * 슬랙 Events API 처리. 1:1 DM 메시지가 오면 Gemini가 1차 답변을 DM으로 보내고,
- * 미해결(에스컬레이션)로 판단되면 수리신청 링크 안내 + 총무팀에 DM 알림을 보냅니다.
- * @param {Object} body - 슬랙 이벤트 payload
- * @return {GoogleAppsScript.Content.TextOutput} 200 응답(또는 URL 검증 challenge)
- */
-function handleSlackEvent_(body) {
-  // 1) 최초 URL 등록 시 challenge 확인
-  if (body.type === 'url_verification') {
-    return ContentService.createTextOutput(body.challenge || '')
-  }
-  // 2) 검증 토큰(설정 시)
-  if (SLACK_VERIFY_TOKEN && body.token !== SLACK_VERIFY_TOKEN) {
-    return jsonOutput_({ ok: false })
-  }
-  // 3) 재시도/중복 방지: 같은 event_id는 한 번만 처리(3초 제한으로 Slack이 재전송할 수 있음)
-  try {
-    if (body.event_id) {
-      var cache = CacheService.getScriptCache()
-      if (cache.get('ev_' + body.event_id)) return jsonOutput_({ ok: true })
-      cache.put('ev_' + body.event_id, '1', 600)
-    }
-  } catch (cacheErr) {
-    // 캐시 실패는 무시(최악의 경우 중복 응답)
-  }
-
-  var ev = body.event || {}
-  // 1:1 DM(im)만 + 봇 자신/수정/시스템 메시지는 무시(루프 방지)
-  if (ev.type === 'message' && ev.channel_type === 'im' && !ev.bot_id && !ev.subtype && ev.text) {
-    var r = generateBotAnswer_(ev.text)
-    postSlack_(ev.channel, buildRequesterReply_(r))
-    // 미해결일 때만 총무팀에 알림
-    if (r.needsHuman) notifyAdminsSlack_(ev, ev.text)
-  }
-  return jsonOutput_({ ok: true })
-}
-
-/** 요청자에게 보낼 메시지(답변 + 미해결 시 수리신청 링크 안내)를 만듭니다. */
-function buildRequesterReply_(r) {
-  var msg = r.answer
-  if (r.needsHuman) {
-    msg +=
-      '\n\n스스로 해결이 어려우면 아래에서 수리 신청해 주세요.\n' +
-      '🔧 자산 수리신청: ' +
-      SITE_BASE_URL +
-      '/request\n' +
-      '(로그인은 직원용 비밀번호로 접속 — 사내 공지/총무팀 안내 참고)'
-  }
-  return msg
-}
-
-/**
- * FAQ를 컨텍스트로 Gemini에게 질문해 1차 답변과 '미해결 여부'를 생성합니다.
- * 프롬프트에 FAQ로 확신 못 하면 끝에 `<ESCALATE>` 태그를 붙이게 지시하고, 그 유무로 판별합니다.
- * @param {string} question - 사용자 질문
- * @return {Object} { answer, needsHuman }
- */
-function generateBotAnswer_(question) {
-  if (!GEMINI_API_KEY) {
-    return { answer: '챗봇이 아직 설정되지 않았습니다. 총무팀에 문의해 주세요.', needsHuman: false }
-  }
-  var faq = buildFaq_()
-  var faqText = faq.length
-    ? faq
-        .map(function (f, i) {
-          return i + 1 + '. Q: ' + f.question + '\n   A: ' + f.answer
-        })
-        .join('\n')
-    : '(등록된 FAQ 없음)'
-
-  var prompt =
-    '당신은 The SMC 총무팀의 1차 응대 챗봇입니다. 직원이 자산(모니터·노트북·PC·프린터·복합기·인터넷 등) 관련으로 보낸 메시지에 한국어로 간결하고 정중하게 답하세요.\n' +
-    '- 아래 FAQ에 관련 내용이 있으면 그것을 바탕으로 간단한 해결 방법을 안내합니다.\n' +
-    '- 답변은 3~5문장 이내로 짧게.\n' +
-    '- FAQ로 확실히 해결하기 어렵거나 현장 수리/총무팀 처리가 필요한 문의라면, 답변 맨 끝 줄에 정확히 `<ESCALATE>` 한 단어만 덧붙이세요. (사용자에게는 이 태그를 설명하지 말 것)\n\n' +
-    '[FAQ]\n' +
-    faqText +
-    '\n\n[직원 메시지]\n' +
-    question +
-    '\n\n[답변]'
-
-  try {
-    var url =
-      'https://generativelanguage.googleapis.com/v1beta/models/' +
-      GEMINI_MODEL +
-      ':generateContent?key=' +
-      encodeURIComponent(GEMINI_API_KEY)
-    var res = UrlFetchApp.fetch(url, {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      muteHttpExceptions: true,
-    })
-    var json = JSON.parse(res.getContentText())
-    var text =
-      json &&
-      json.candidates &&
-      json.candidates[0] &&
-      json.candidates[0].content &&
-      json.candidates[0].content.parts &&
-      json.candidates[0].content.parts[0] &&
-      json.candidates[0].content.parts[0].text
-    if (!text) return { answer: '지금은 답변을 생성하지 못했습니다. 총무팀에 문의해 주세요.', needsHuman: true }
-    var needsHuman = String(text).indexOf('<ESCALATE>') !== -1
-    var answer = String(text).replace(/<ESCALATE>/g, '').trim()
-    return { answer: answer, needsHuman: needsHuman }
-  } catch (err) {
-    return { answer: '지금은 답변을 생성하지 못했습니다. 총무팀에 문의해 주세요.', needsHuman: true }
-  }
-}
-
-/**
- * 슬랙 채널(또는 DM 채널 id)에 메시지를 보냅니다. (chat.postMessage)
- * @param {string} channel - 채널/DM 채널 id
- * @param {string} text - 보낼 텍스트
- */
-function postSlack_(channel, text) {
-  if (!SLACK_BOT_TOKEN || !channel) return
-  UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
-    method: 'post',
-    contentType: 'application/json',
-    headers: { Authorization: 'Bearer ' + SLACK_BOT_TOKEN },
-    payload: JSON.stringify({ channel: channel, text: text }),
-    muteHttpExceptions: true,
-  })
-}
-
-/**
- * 특정 사용자에게 1:1 DM을 보냅니다. (conversations.open → chat.postMessage)
- * @param {string} userId - 슬랙 사용자 id(U...)
- * @param {string} text - 보낼 텍스트
- */
-function dmUser_(userId, text) {
-  if (!SLACK_BOT_TOKEN || !userId) return
-  try {
-    var res = UrlFetchApp.fetch('https://slack.com/api/conversations.open', {
-      method: 'post',
-      contentType: 'application/json',
-      headers: { Authorization: 'Bearer ' + SLACK_BOT_TOKEN },
-      payload: JSON.stringify({ users: userId }),
-      muteHttpExceptions: true,
-    })
-    var j = JSON.parse(res.getContentText())
-    if (j && j.ok && j.channel && j.channel.id) postSlack_(j.channel.id, text)
-  } catch (err) {
-    // 개별 전송 실패는 무시
-  }
-}
-
-/**
- * 미해결 문의를 총무팀(ADMIN_SLACK_IDS) 전원에게 DM으로 알립니다. (관리자 링크 포함)
- * @param {Object} ev - 슬랙 메시지 이벤트
- * @param {string} question - 요청자 메시지
- */
-function notifyAdminsSlack_(ev, question) {
-  if (!ADMIN_SLACK_IDS) return
-  var ids = ADMIN_SLACK_IDS.split(',')
-  var msg =
-    '📩 *자산 문의가 접수되었습니다* (챗봇이 1차 응대했지만 해결이 어려운 건)\n' +
-    '• 요청자: <@' +
-    (ev.user || '') +
-    '>\n' +
-    '• 내용: ' +
-    String(question || '').slice(0, 300) +
-    '\n' +
-    '• 관리자 화면: ' +
-    SITE_BASE_URL +
-    '/admin\n' +
-    '(로그인은 총무팀용 비밀번호로 접속 — 사내 공지/총무팀 안내 참고)'
-  for (var i = 0; i < ids.length; i++) {
-    var id = String(ids[i]).trim()
-    if (id) dmUser_(id, msg)
-  }
 }
 
 /**
