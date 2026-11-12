@@ -30,6 +30,23 @@ var SLACK_WEBHOOK_URL = ''
 var ADMIN_EMAIL = 'hoon2@thesmc.co.kr'
 
 /**
+ * Gemini(제미나이) API 키. 스크립트 속성 `GEMINI_API_KEY`에서 읽습니다.
+ * 설정: [프로젝트 설정] → [스크립트 속성] → GEMINI_API_KEY = 발급받은 키.
+ * 비우면 챗봇이 "미설정" 안내만 반환합니다.
+ */
+var GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || ''
+
+/** 사용할 Gemini 모델. (빠르고 저렴한 flash 계열 권장) */
+var GEMINI_MODEL = 'gemini-2.0-flash'
+
+/**
+ * 슬랙 슬래시 커맨드 검증 토큰(선택). 스크립트 속성 `SLACK_SLASH_TOKEN`.
+ * 슬랙 앱의 슬래시 커맨드 설정에 표시되는 Verification Token을 넣으면,
+ * 그 값과 일치하는 요청만 처리합니다. 비우면 검증을 건너뜁니다.
+ */
+var SLACK_SLASH_TOKEN = PropertiesService.getScriptProperties().getProperty('SLACK_SLASH_TOKEN') || ''
+
+/**
  * 수리 사진을 저장할 Google Drive 폴더 ID.
  * 사용자가 직접 만들어 **공유 설정(링크가 있는 사용자 보기 등)**을 지정한 폴더를 씁니다.
  * → 코드가 자동으로 공개 설정하지 않아도 되고, 도메인 외부공유 정책 이슈를 피할 수 있음.
@@ -47,6 +64,7 @@ var SHEET_CONSUMABLE = '7_소모품목록' // 열: 소모품명 / 현재고 / �
 var SHEET_ORG = '8_조직설정' // A1 셀에 {divisions, locations} JSON 저장(부서/사용위치)
 var SHEET_MASTER = '9_코드마스터' // A1 셀에 {categories, rentalCompanies, consumables, manufacturers} JSON
 var SHEET_AUTH = '10_로그인설정' // A1 셀에 {admin, employee, vendor} 비밀번호 SHA-256 해시 JSON(오버라이드)
+var SHEET_FAQ = '11_FAQ' // 행: 질문 / 답변 / 키워드 (슬랙 챗봇 1차 대응용, 총무팀 편집)
 
 // ===== 진입점 =====
 
@@ -57,6 +75,12 @@ var SHEET_AUTH = '10_로그인설정' // A1 셀에 {admin, employee, vendor} 비
  */
 function doPost(e) {
   try {
+    // 슬랙 슬래시 커맨드는 form-encoded(application/x-www-form-urlencoded)로 와서
+    // JSON이 아니므로, JSON 파싱 전에 먼저 분기합니다. (e.parameter.command 존재로 판별)
+    if (e && e.parameter && e.parameter.command) {
+      return handleSlackSlash_(e.parameter)
+    }
+
     var body = JSON.parse(e.postData.contents)
 
     // 토큰이 설정된 경우, 일치하지 않는 요청은 거부합니다(무단 쓰기 차단).
@@ -83,6 +107,7 @@ function doPost(e) {
     if (type === 'orgSettingsUpdate') return jsonOutput_(handleOrgSettingsUpdate_(payload))
     if (type === 'masterCodesUpdate') return jsonOutput_(handleMasterCodesUpdate_(payload))
     if (type === 'authSettingsUpdate') return jsonOutput_(handleAuthSettingsUpdate_(payload))
+    if (type === 'faqUpdate') return jsonOutput_(handleFaqUpdate_(payload))
     return jsonOutput_({ ok: false, message: '알 수 없는 요청 유형: ' + type })
   } catch (err) {
     return jsonOutput_({ ok: false, message: String(err) })
@@ -167,10 +192,17 @@ function doGet(e) {
     return jsonOutput_({ ok: true, auth: buildAuthSettings_() })
   }
 
+  if (params.action === 'faq') {
+    if (API_TOKEN && params.token !== API_TOKEN) {
+      return jsonOutput_({ ok: false, message: '인증 실패(토큰 불일치)' })
+    }
+    return jsonOutput_({ ok: true, faq: buildFaq_() })
+  }
+
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v28-user-email-col-fix',
+    version: 'v29-slack-faq-bot',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -503,6 +535,122 @@ function handleAuthSettingsUpdate_(p) {
   if (typeof p.guestEnabled !== 'undefined') payload.guestEnabled = !!p.guestEnabled
   sheet.getRange(1, 1).setValue(JSON.stringify(payload))
   return { ok: true }
+}
+
+/**
+ * FAQ(예상질문/답변)를 조회합니다. `11_FAQ` 시트 행: 0질문 1답변 2키워드 (1행=헤더).
+ * @return {Object[]} [{ question, answer, keywords }]
+ */
+function buildFaq_() {
+  var sheet = getSheetOrNull_(SHEET_FAQ)
+  if (!sheet) return []
+  var rows = sheet.getDataRange().getValues()
+  var out = []
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i]
+    if (!r[0] && !r[1]) continue // 질문·답변 모두 없으면 빈 행
+    out.push({ question: r[0] || '', answer: r[1] || '', keywords: r[2] || '' })
+  }
+  return out
+}
+
+/**
+ * FAQ 목록을 통째로 저장합니다. (총무팀 FAQ 편집 → 시트 전체 재작성)
+ * @param {Object} p - { items: [{ question, answer, keywords }] }
+ * @return {Object} 처리 결과
+ */
+function handleFaqUpdate_(p) {
+  var sheet = getSheet_(SHEET_FAQ)
+  var items = p.items || []
+  sheet.clearContents()
+  var rows = [['질문', '답변', '키워드']]
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i] || {}
+    rows.push([it.question || '', it.answer || '', it.keywords || ''])
+  }
+  sheet.getRange(1, 1, rows.length, 3).setValues(rows)
+  return { ok: true }
+}
+
+/**
+ * 슬랙 슬래시 커맨드(`/문의 질문내용`)를 처리합니다.
+ * FAQ를 컨텍스트로 Gemini가 1차 답변을 생성해 즉시 응답합니다.
+ * @param {Object} p - 슬랙이 보낸 form 파라미터 { command, text, token, user_name, ... }
+ * @return {GoogleAppsScript.Content.TextOutput} 슬랙 메시지 JSON
+ */
+function handleSlackSlash_(p) {
+  // 검증 토큰이 설정돼 있으면 일치하는 요청만 처리
+  if (SLACK_SLASH_TOKEN && p.token !== SLACK_SLASH_TOKEN) {
+    return jsonOutput_({ response_type: 'ephemeral', text: '인증 실패: 요청을 처리할 수 없습니다.' })
+  }
+  var question = (p.text || '').trim()
+  if (!question) {
+    return jsonOutput_({
+      response_type: 'ephemeral',
+      text: '궁금한 내용을 함께 입력해 주세요. 예) `/문의 노트북 수리 어떻게 신청해요?`',
+    })
+  }
+  var answer = askGemini_(question)
+  // ephemeral: 질문한 사람에게만 보이도록(1차 대응). 전체 공개가 필요하면 in_channel로 변경.
+  return jsonOutput_({ response_type: 'ephemeral', text: answer })
+}
+
+/**
+ * FAQ를 컨텍스트로 Gemini에게 질문해 1차 답변 텍스트를 생성합니다.
+ * 키가 없거나 호출 실패 시에는 안내 문구(총무팀 연결)를 반환합니다.
+ * @param {string} question - 사용자 질문
+ * @return {string} 답변 텍스트
+ */
+function askGemini_(question) {
+  if (!GEMINI_API_KEY) {
+    return '챗봇이 아직 설정되지 않았습니다. 총무팀(' + (ADMIN_EMAIL || '관리자') + ')에게 문의해 주세요.'
+  }
+  var faq = buildFaq_()
+  var faqText = faq.length
+    ? faq
+        .map(function (f, i) {
+          return i + 1 + '. Q: ' + f.question + '\n   A: ' + f.answer
+        })
+        .join('\n')
+    : '(등록된 FAQ 없음)'
+
+  var prompt =
+    '당신은 The SMC 총무팀의 1차 응대 챗봇입니다. 아래 FAQ를 근거로 직원 질문에 한국어로 간결하고 정중하게 답하세요.\n' +
+    '- FAQ에 관련 내용이 있으면 그것을 바탕으로 답합니다.\n' +
+    '- FAQ로 확실히 답할 수 없으면 추측하지 말고 "총무팀 확인이 필요한 내용입니다. 총무팀에 문의해 주세요."라고 안내하세요.\n' +
+    '- 답변은 3~5문장 이내로 짧게.\n\n' +
+    '[FAQ]\n' +
+    faqText +
+    '\n\n[직원 질문]\n' +
+    question +
+    '\n\n[답변]'
+
+  try {
+    var url =
+      'https://generativelanguage.googleapis.com/v1beta/models/' +
+      GEMINI_MODEL +
+      ':generateContent?key=' +
+      encodeURIComponent(GEMINI_API_KEY)
+    var res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      muteHttpExceptions: true,
+    })
+    var json = JSON.parse(res.getContentText())
+    var text =
+      json &&
+      json.candidates &&
+      json.candidates[0] &&
+      json.candidates[0].content &&
+      json.candidates[0].content.parts &&
+      json.candidates[0].content.parts[0] &&
+      json.candidates[0].content.parts[0].text
+    if (text) return String(text).trim()
+    return '지금은 답변을 생성하지 못했습니다. 총무팀에 문의해 주세요.'
+  } catch (err) {
+    return '지금은 답변을 생성하지 못했습니다. 총무팀에 문의해 주세요. (오류: ' + String(err) + ')'
+  }
 }
 
 /**

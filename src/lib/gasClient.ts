@@ -18,6 +18,7 @@ export type GasRequestType =
   | 'orgSettingsUpdate'
   | 'masterCodesUpdate'
   | 'authSettingsUpdate'
+  | 'faqUpdate'
 
 /** 백엔드(GAS) 공통 응답 형식. */
 export interface GasResult {

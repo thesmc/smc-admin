@@ -8,6 +8,7 @@ import { requestsModule } from '@/features/requests'
 import { masterModule } from '@/features/master'
 import { usersModule } from '@/features/users'
 import { settingsModule } from '@/features/settings'
+import { faqModule } from '@/features/faq'
 
 /**
  * 플랫폼에 등록된 전체 모듈 목록.
@@ -25,4 +26,5 @@ export const MODULES: ModuleDef[] = [
   masterModule,
   usersModule,
   settingsModule,
+  faqModule,
 ].sort((a, b) => a.order - b.order)
