@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Users, Building2, Plus } from 'lucide-react'
-import { StatCard, Card } from '@/components/ui'
+import { StatCard, Card, Pager } from '@/components/ui'
 import LoadingState from '@/components/feedback/LoadingState'
 import MockNotice from '@/components/feedback/MockNotice'
 import EmptyState from '@/components/feedback/EmptyState'
+import { usePagination } from '@/hooks/usePagination'
 import { useUsers } from './useUsers'
 import UserFormModal from './UserFormModal'
 import type { UserRow } from './types'
@@ -24,6 +25,9 @@ export default function UsersListPage() {
     () => new Set(users.map((u) => u.department).filter(Boolean)).size,
     [users],
   )
+
+  // 20명씩 페이지네이션.
+  const { page, setPage, pageCount, pageItems, total } = usePagination(users, 20)
 
   /** 등록 모달 열기(신규). */
   function openNew() {
@@ -77,7 +81,7 @@ export default function UsersListPage() {
                   </td>
                 </tr>
               )}
-              {users.map((u) => (
+              {pageItems.map((u) => (
                 <tr key={u.id} className="users-row" onClick={() => openEdit(u)}>
                   <td>{u.id}</td>
                   <td>{u.name}</td>
@@ -90,6 +94,8 @@ export default function UsersListPage() {
             </tbody>
           </table>
         </div>
+
+        <Pager page={page} pageCount={pageCount} onChange={setPage} total={total} />
       </Card>
 
       {formOpen && (

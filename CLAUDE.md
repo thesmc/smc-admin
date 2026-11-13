@@ -219,7 +219,9 @@ src/
 > 로그인 영상 추가 압축/poster가 필요하면 로컬 ffmpeg로 재인코딩 가능(위 로그인 화면 메모 참고).
 
 > GAS 재배포로 URL이 바뀌면 `src/config/api.ts`의 `GAS_URL`도 갱신해야 함.
-> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v42-request-emails`(= 사용자 "V45" 배포, 검증 완료) / 코드 최신: `v43-sender-from`(⚠️ 미배포 — 보낸사람 From 변경은 Gmail 별칭 선행 필요, 급하지 않음).**
+> 배포 반영 확인: 웹앱 GET → `version` 필드로 판별. **배포됨: `v44-repair-revert`(= 사용자 "V46" 배포, 2026-11-13). 코드=배포 일치.**
+> - **2026-11-13 추가요청 4건 완료**: ①수리접수 '완료' 시 연결 자산이 '수리중'이면 '사용중'으로 **자동 복귀**(`revertAssetFromRepair_`, 폐기 등은 보존, 3_변경로그 기록) → 대시보드·자산탭 '수리 중' 집계 자동 감소. ②③**자산·사용자 목록 페이지네이션 20줄**(`hooks/usePagination.ts` + `components/ui/Pager`, 필터/검색 변경 시 1p 리셋). ④**OG 메타태그**(index.html: og/twitter, 절대 URL) + `public/og-image.png`(1200×630) → 링크 미리보기. (GAS는 ①만 관련, 나머지는 프론트.)
+> - (이전) v43-sender-from(보낸사람 From=general_affairs, Gmail 별칭 선행 필요) · v42(신청 5종 접수메일 + ADMIN_EMAIL=general_affairs 수신)는 v44에 포함돼 함께 배포됨.
 > - v42(배포·검증): ①슬랙/Gemini 코드 제거(FAQ·자산관리 유지) ②`ADMIN_EMAIL`=`general_affairs@thesmc.co.kr`(=받는사람)로 변경 ③직원 신청 5종 전부 접수 메일 — 수리신청(기존) + 자산/소모품/반납/교체(신규 `notifyRequestEmails_`: 총무팀 알림 + 신청자 접수확인, 폼 이메일 우선·없으면 사용자목록). **general_affairs@ 수신 테스트 성공(2026-11-12).**
 > - v43(코드만, 미배포): 보낸사람(From) = `SENDER_EMAIL`(general_affairs@)/`SENDER_NAME`('총무팀') — 공용 `sendMail_` 래퍼(별칭 미등록 시 기본계정으로 폴백). + 편집기 테스트 함수 `testMail`. **From 표시를 실제로 바꾸려면: hoon2 Gmail '다른 주소에서 메일 보내기'에 general_affairs@ 등록·인증 → v43 재배포.** 안 해도 받는 기능은 정상.
 > - 슬랙 DM 챗봇은 GAS가 아니라 독립 Python 봇(`Desktop\Slackbot\auto_reply.pyw`)으로 이전. 스크립트 속성은 `API_TOKEN`만 유지.

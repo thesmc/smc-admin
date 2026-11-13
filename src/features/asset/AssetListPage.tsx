@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Laptop, BadgeCheck, Wrench, Trash2, Plus, Search, ArrowUpDown, ScanLine, Layers } from 'lucide-react'
-import { StatCard, Badge, Modal, Card, QrScannerModal } from '@/components/ui'
+import { StatCard, Badge, Modal, Card, QrScannerModal, Pager } from '@/components/ui'
 import LoadingState from '@/components/feedback/LoadingState'
 import MockNotice from '@/components/feedback/MockNotice'
 import EmptyState from '@/components/feedback/EmptyState'
 import { getAssetStatusVariant } from '@/lib/badgeVariant'
 import { ASSET_STATUSES } from '@/constants/asset'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
+import { usePagination } from '@/hooks/usePagination'
 import { useAssets } from './useAssets'
 import { useAssetSelection } from './useAssetSelection'
 import { useAssetBulkActions } from './useAssetBulkActions'
@@ -108,6 +109,13 @@ export default function AssetListPage() {
     }
     return list
   }, [assets, filter, divisionTeams, userFilter, statusFilter, query, sortKey, sortAsc])
+
+  // 20줄씩 페이지네이션. 필터/검색/정렬이 바뀌면 1페이지로 리셋.
+  const { page, setPage, pageCount, pageItems, total } = usePagination(
+    visibleAssets,
+    20,
+    `${filter}|${divisionFilter}|${userFilter}|${statusFilter}|${query}|${sortKey}|${sortAsc}`,
+  )
 
   /**
    * QR 스캔 결과 처리. 디코드된 자산번호로 목록에서 자산을 찾아 상세를 엽니다.
@@ -319,7 +327,7 @@ export default function AssetListPage() {
                   </td>
                 </tr>
               )}
-              {visibleAssets.map((asset: AssetRow, index) => (
+              {pageItems.map((asset: AssetRow, index) => (
                 <tr
                   // 자산번호가 비었거나 중복인 데이터가 많아, 인덱스를 더해 key 중복(리스트 잔상) 방지
                   key={`${asset.assetNumber || asset.name}-${index}`}
@@ -352,6 +360,8 @@ export default function AssetListPage() {
             </tbody>
           </table>
         </div>
+
+        <Pager page={page} pageCount={pageCount} onChange={setPage} total={total} />
       </Card>
 
       <Modal open={registerOpen} title="자산 등록" onClose={() => setRegisterOpen(false)}>

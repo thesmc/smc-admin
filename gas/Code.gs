@@ -191,7 +191,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v43-sender-from',
+    version: 'v44-repair-revert',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -1014,11 +1014,14 @@ function handleRepairUpdate_(p) {
     if (values[i][1] !== p.ticketNumber) continue
     var row = i + 1
     var beforeStatus = values[i][9] // 진행상태 (col9)
+    var assetNumber = values[i][4] // 4 자산번호(연결 자산 — 완료 시 상태 되돌림용)
 
     sheet.getRange(row, 10).setValue(p.status || '') //   9 진행상태
     sheet.getRange(row, 11).setValue(p.assignee || '') // 10 담당자
     if (p.status === '완료') {
       sheet.getRange(row, 12).setValue(stamp_()) //     11 처리완료일(날짜만)
+      // 수리 완료 → 연결 자산이 '수리중'이면 '사용중'으로 자동 복귀(대시보드·자산탭 '수리 중' 집계에서 제외)
+      revertAssetFromRepair_(assetNumber, p.assignee || '총무팀', p.ticketNumber)
     }
 
     if (beforeStatus !== p.status) {
@@ -1036,6 +1039,38 @@ function handleRepairUpdate_(p) {
     return { ok: true }
   }
   return { ok: false, message: '접수번호를 찾을 수 없습니다: ' + p.ticketNumber }
+}
+
+/**
+ * 수리 완료 시, 연결된 자산이 '수리중' 상태면 '사용중'으로 되돌립니다.
+ * (자산번호가 비었거나 자산을 못 찾거나, 상태가 '수리중'이 아니면 아무것도 하지 않음 — 폐기/폐기예정 보존)
+ * 상태를 바꾸면 3_변경로그에 '자산변경' 이력을 남깁니다.
+ * @param {string} assetNumber - 수리접수 행의 자산번호
+ * @param {string} actor - 변경 담당자(로그용)
+ * @param {string} ticketNumber - 근거 수리 접수번호(로그 메모용)
+ * @return {void}
+ */
+function revertAssetFromRepair_(assetNumber, actor, ticketNumber) {
+  if (!assetNumber) return
+  var sheet = getSheetOrNull_(SHEET_ASSET)
+  if (!sheet) return
+  var values = sheet.getDataRange().getValues()
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][1]) !== String(assetNumber)) continue // 1 자산번호
+    if (values[i][11] !== '수리중') return // 11 상태 — 수리중일 때만 복귀(폐기 등은 보존)
+    sheet.getRange(i + 1, 12).setValue('사용중') // 11 상태(1-based 12)
+    appendRow_(SHEET_LOG, [
+      stamp_(),
+      '자산변경',
+      actor,
+      assetNumber,
+      '상태',
+      '수리중',
+      '사용중',
+      '수리완료(' + (ticketNumber || '') + ') 자동 복귀',
+    ])
+    return
+  }
 }
 
 /**
