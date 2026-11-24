@@ -123,11 +123,11 @@ export default function AssetDetailModal({ asset, onClose, onSaved }: AssetDetai
 
   /**
    * 반납 처리(원클릭). 사용자가 자산을 반납(예: 퇴사)했을 때 호출합니다.
-   * 상태를 '사용가능(재고)'로 바꾸고 사용자·부서 배정을 해제합니다.
+   * 상태를 '재고'로 바꾸고 사용자·부서 배정을 해제합니다.
    */
   async function handleReturn() {
     if (!asset) return
-    if (!window.confirm('이 자산을 반납 처리할까요?\n상태가 "사용가능(재고)"로 바뀌고 사용자 배정이 해제됩니다.')) {
+    if (!window.confirm('이 자산을 반납 처리할까요?\n상태가 "재고"로 바뀌고 사용자 배정이 해제됩니다.')) {
       return
     }
     setSaving(true)
@@ -136,14 +136,14 @@ export default function AssetDetailModal({ asset, onClose, onSaved }: AssetDetai
       user: '',
       department: '',
       location: asset.location,
-      status: '사용가능',
+      status: '재고',
       manager: asset.manager,
       note: asset.note,
       disposalDate: '',
     })
     setSaving(false)
     if (result.ok) {
-      onSaved(asset.assetNumber, { status: '사용가능', user: '', department: '' })
+      onSaved(asset.assetNumber, { status: '재고', user: '', department: '' })
       onClose()
     } else {
       window.alert(`반납 처리 실패: ${result.message ?? '알 수 없는 오류'}`)

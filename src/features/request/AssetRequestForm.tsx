@@ -2,9 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { FormSection, FormField, TextInput, SelectField } from '@/components/form'
 import { useForm } from '@/hooks/useForm'
-import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useMasterCodes } from '@/hooks/useMasterCodes'
 import { submitAssetRequest, submitRequestBatch } from './api'
+import RequesterFields from './RequesterFields'
 import './RequestForm.css'
 
 /** 신청 품목 1건(자산 종류 + 희망 사양). */
@@ -26,11 +26,11 @@ function emptyItem(): AssetItem {
  */
 export default function AssetRequestForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions, locations } = useOrgSettings()
   const { codes } = useMasterCodes()
-  // 공통 정보(신청자/부서/이메일/위치/사유/희망일)는 한 번만 입력
+  // 공통 정보(신청자/본부/부서/이메일/위치/사유/희망일)는 한 번만 입력
   const { values, setField, reset } = useForm({
     requester: '',
+    division: '',
     department: '',
     email: '',
     location: '',
@@ -59,6 +59,7 @@ export default function AssetRequestForm() {
     const result = await submitRequestBatch(validItems, (it) =>
       submitAssetRequest({
         requester: values.requester,
+        division: values.division,
         department: values.department,
         email: values.email,
         location: values.location,
@@ -81,18 +82,15 @@ export default function AssetRequestForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FormSection title="자산 신청">
-        <FormField label="신청자" htmlFor="ar-name" required>
-          <TextInput id="ar-name" value={values.requester} onChange={(v) => setField('requester', v)} />
-        </FormField>
-        <FormField label="부서" htmlFor="ar-dept" required>
-          <SelectField id="ar-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
-        </FormField>
-        <FormField label="이메일" htmlFor="ar-email">
-          <TextInput id="ar-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
-        </FormField>
-        <FormField label="현재 위치" htmlFor="ar-loc">
-          <SelectField id="ar-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
-        </FormField>
+        <RequesterFields
+          idPrefix="ar"
+          requester={values.requester}
+          division={values.division}
+          department={values.department}
+          email={values.email}
+          location={values.location}
+          onChange={setField}
+        />
         <FormField label="희망일" htmlFor="ar-date">
           <TextInput id="ar-date" type="date" value={values.wantDate} onChange={(v) => setField('wantDate', v)} />
         </FormField>

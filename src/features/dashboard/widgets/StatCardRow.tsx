@@ -1,4 +1,4 @@
-import { Laptop, BadgeCheck, Wrench, Trash2, Package } from 'lucide-react'
+import { Laptop, BadgeCheck, Boxes } from 'lucide-react'
 import { StatCard, type StatTone } from '@/components/ui'
 import type { DashboardStats } from '../types'
 
@@ -33,9 +33,7 @@ export default function StatCardRow({ stats }: StatCardRowProps) {
   const cards: StatDef[] = [
     { label: '전체 자산 수', value: stats.totalAssets.toLocaleString('ko-KR'), unit: '대', caption: '전체 자산', tone: 'blue', Icon: Laptop },
     { label: '사용 중 자산', value: stats.inUseAssets.toLocaleString('ko-KR'), unit: '대', caption: `전체의 ${percentOfTotal(stats.inUseAssets)}%`, tone: 'green', Icon: BadgeCheck },
-    { label: '수리 중 자산', value: stats.repairingAssets.toLocaleString('ko-KR'), unit: '대', caption: `전체의 ${percentOfTotal(stats.repairingAssets)}%`, tone: 'orange', Icon: Wrench },
-    { label: '폐기 예정 자산', value: stats.disposalPlannedAssets.toLocaleString('ko-KR'), unit: '대', caption: '30일 이내', tone: 'red', Icon: Trash2 },
-    { label: '소모품 재고 부족', value: stats.lowStockCount.toLocaleString('ko-KR'), unit: '개', caption: '즉시 확인 필요', tone: 'purple', Icon: Package },
+    { label: '재고 자산 수량', value: stats.stockAssets.toLocaleString('ko-KR'), unit: '대', caption: `전체의 ${percentOfTotal(stats.stockAssets)}%`, tone: 'purple', Icon: Boxes },
   ]
 
   return (

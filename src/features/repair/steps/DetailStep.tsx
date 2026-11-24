@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { FormSection, FormField, TextInput, SelectField } from '@/components/form'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import type { RepairFormControl } from '../formConfig'
@@ -9,7 +10,12 @@ import type { RepairFormControl } from '../formConfig'
  * @returns 상세 정보 스텝
  */
 export default function DetailStep({ values, setField }: RepairFormControl) {
-  const { departmentOptions, locations } = useOrgSettings()
+  const { divisions, locations } = useOrgSettings()
+  // 본부 선택 시 그 본부의 팀만, 미선택 시 전체 팀을 부서 옵션으로.
+  const deptOptions = useMemo(() => {
+    if (values.division) return divisions.find((d) => d.name === values.division)?.teams ?? []
+    return divisions.flatMap((d) => d.teams)
+  }, [values.division, divisions])
   return (
     <FormSection title="요청자 정보">
       <FormField label="이름" htmlFor="requesterName" required>
@@ -21,12 +27,24 @@ export default function DetailStep({ values, setField }: RepairFormControl) {
         />
       </FormField>
 
+      <FormField label="본부" htmlFor="division" required>
+        <SelectField
+          id="division"
+          value={values.division}
+          onChange={(v) => {
+            setField('division', v)
+            setField('department', '') // 본부 변경 시 부서 초기화
+          }}
+          options={divisions.map((d) => d.name)}
+        />
+      </FormField>
+
       <FormField label="소속 부서" htmlFor="department" required>
         <SelectField
           id="department"
           value={values.department}
           onChange={(v) => setField('department', v)}
-          options={departmentOptions}
+          options={deptOptions}
         />
       </FormField>
 

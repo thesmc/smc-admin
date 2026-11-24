@@ -2,13 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { FormSection, FormField, TextInput, SelectField } from '@/components/form'
 import { useForm } from '@/hooks/useForm'
-import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useMasterCodes } from '@/hooks/useMasterCodes'
 import { submitAssetSwap, submitRequestBatch } from './api'
+import RequesterFields from './RequesterFields'
 import './RequestForm.css'
 
 /** 교체 사유 선택지. */
-const SWAP_REASONS = ['고장', '노후(내용연수 초과)', '사양 부족', '파손', '분실', '기타'] as const
+const SWAP_REASONS = ['고장', '노후', '사양 부족', '파손', '분실', '기타'] as const
 
 /** 교체 대상 자산 1건. */
 interface SwapItem {
@@ -30,16 +30,18 @@ function emptyItem(): SwapItem {
  */
 export default function AssetSwapForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions, locations } = useOrgSettings()
   const { codes } = useMasterCodes()
   const { values, setField, reset } = useForm({
     requester: '',
+    division: '',
     department: '',
     email: '',
     location: '',
     reason: '',
     note: '',
   })
+  // '기타' 사유일 때는 비고(설명)를 필수로 받는다.
+  const isEtc = values.reason === '기타'
   const [items, setItems] = useState<SwapItem[]>([emptyItem()])
 
   /** 특정 교체 항목의 한 필드를 갱신합니다. */
@@ -48,7 +50,12 @@ export default function AssetSwapForm() {
   }
 
   const validItems = items.filter((it) => it.assetNumber.trim())
-  const canSubmit = values.requester.trim() && values.department && values.reason && validItems.length > 0
+  const canSubmit =
+    values.requester.trim() &&
+    values.department &&
+    values.reason &&
+    (!isEtc || values.note.trim()) && // 기타 사유면 설명 필수
+    validItems.length > 0
 
   /** 신청 제출. 자산마다 개별 교체 신청으로 저장합니다. */
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -61,6 +68,7 @@ export default function AssetSwapForm() {
     const result = await submitRequestBatch(validItems, (it) =>
       submitAssetSwap({
         requester: values.requester,
+        division: values.division,
         department: values.department,
         email: values.email,
         location: values.location,
@@ -84,23 +92,25 @@ export default function AssetSwapForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FormSection title="자산 교체 신청">
-        <FormField label="신청자" htmlFor="sw-name" required>
-          <TextInput id="sw-name" value={values.requester} onChange={(v) => setField('requester', v)} />
-        </FormField>
-        <FormField label="부서" htmlFor="sw-dept" required>
-          <SelectField id="sw-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
-        </FormField>
-        <FormField label="이메일" htmlFor="sw-email">
-          <TextInput id="sw-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
-        </FormField>
-        <FormField label="현재 위치" htmlFor="sw-loc">
-          <SelectField id="sw-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
-        </FormField>
+        <RequesterFields
+          idPrefix="sw"
+          requester={values.requester}
+          division={values.division}
+          department={values.department}
+          email={values.email}
+          location={values.location}
+          onChange={setField}
+        />
         <FormField label="교체 사유" htmlFor="sw-reason" required>
           <SelectField id="sw-reason" value={values.reason} onChange={(v) => setField('reason', v)} options={SWAP_REASONS} />
         </FormField>
-        <FormField label="비고" htmlFor="sw-note" fullWidth>
-          <TextInput id="sw-note" value={values.note} onChange={(v) => setField('note', v)} placeholder="증상·요청사항 등" />
+        <FormField label={isEtc ? '기타 사유 설명' : '비고'} htmlFor="sw-note" required={isEtc} fullWidth>
+          <TextInput
+            id="sw-note"
+            value={values.note}
+            onChange={(v) => setField('note', v)}
+            placeholder={isEtc ? '기타 교체 사유를 적어주세요' : '증상·요청사항 등'}
+          />
         </FormField>
       </FormSection>
 

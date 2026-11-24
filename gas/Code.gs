@@ -191,7 +191,7 @@ function doGet(e) {
   return jsonOutput_({
     ok: true,
     message: 'IT 자산관리 백엔드 정상 동작 중',
-    version: 'v45-repair-sync',
+    version: 'v46-division-stock',
     tokenEnabled: !!API_TOKEN,
   })
 }
@@ -284,6 +284,7 @@ function handleAssetRequest_(p) {
     '', // 11 처리일시
     p.email || '', // 12 이메일
     p.location || '', // 13 현재 위치
+    p.division || '', // 14 본부
   ])
   notifySlack_('📝 *자산 신청* ' + (p.requester || '') + ' / ' + (p.category || ''))
   notifyRequestEmails_('자산신청', p, '품목: ' + (p.category || '') + '\n사유: ' + (p.reason || '') + (detail ? '\n상세: ' + detail : ''))
@@ -312,6 +313,7 @@ function handleReturnRequest_(p) {
     '', // 11 처리일시
     p.email || '', // 12 이메일
     p.location || '', // 13 현재 위치
+    p.division || '', // 14 본부
   ])
   notifySlack_('📦 *반납 신청* ' + (p.requester || '') + ' / ' + (p.assetNumber || ''))
   notifyRequestEmails_('반납신청', p, '자산번호: ' + (p.assetNumber || '') + '\n자산명: ' + (p.assetName || '') + '\n사유: ' + (p.reason || '') + (p.note ? '\n비고: ' + p.note : ''))
@@ -341,6 +343,7 @@ function handleConsumableRequest_(p) {
     '', // 11 처리일시
     p.email || '', // 12 이메일
     p.location || '', // 13 현재 위치
+    p.division || '', // 14 본부
   ])
   notifySlack_('🧴 *소모품 신청* ' + (p.requester || '') + ' / ' + (p.item || '') + ' ' + (p.qty || ''))
   notifyRequestEmails_('소모품신청', p, '품목: ' + (p.item || '') + '\n수량: ' + (p.qty || '') + '\n사유: ' + (p.reason || ''))
@@ -373,6 +376,7 @@ function handleAssetSwapRequest_(p) {
     '', // 11 처리일시
     p.email || '', // 12 이메일
     p.location || '', // 13 현재 위치
+    p.division || '', // 14 본부
   ])
   notifySlack_('🔁 *자산 교체 신청* ' + (p.requester || '') + ' / ' + (p.assetNumber || '') + ' ' + (p.reason || ''))
   notifyRequestEmails_('자산교체', p, '기존 자산번호: ' + (p.assetNumber || '') + '\n기존 자산명: ' + (p.assetName || '') + '\n교체희망: ' + (p.category || '') + '\n사유: ' + (p.reason || '') + (p.note ? '\n비고: ' + p.note : ''))
@@ -449,6 +453,7 @@ function buildRequests_() {
       processedAt: formatDateCell_(r[11]),
       email: r[12] || '', // 12 이메일
       location: r[13] || '', // 13 현재 위치
+      division: r[14] || '', // 14 본부
     })
   }
   return out.reverse()
@@ -632,6 +637,7 @@ function buildRepairs_() {
       attachments: r[8] || '', // 8: 첨부 사진 파일명(쉼표 구분)
       email: r[13] || '', // 13: 접수자 이메일
       location: r[14] || '', // 14: 현재 위치
+      division: r[15] || '', // 15: 본부
     })
   }
   return out.reverse()
@@ -693,7 +699,7 @@ function buildDashboard_() {
   var assetSheet = getSheetOrNull_(SHEET_ASSET)
   var rows = assetSheet ? assetSheet.getDataRange().getValues() : []
   var categoryMap = {}
-  var stats = { totalAssets: 0, inUseAssets: 0, repairingAssets: 0, disposalPlannedAssets: 0, lowStockCount: 0 }
+  var stats = { totalAssets: 0, inUseAssets: 0, repairingAssets: 0, disposalPlannedAssets: 0, stockAssets: 0, lowStockCount: 0 }
   var acquisition = { purchase: 0, rental: 0 }
   var rentalMap = {}
   var rentalCostMap = {} // 렌탈사별 월 렌탈료 합계(진행중만)
@@ -711,6 +717,7 @@ function buildDashboard_() {
     var status = r[11]
     if (status === '사용중') stats.inUseAssets++
     else if (status === '수리중') stats.repairingAssets++
+    else if (status === '재고' || status === '사용가능') stats.stockAssets++ // 재고(구 '사용가능') 수량
     else if (status === '폐기예정') {
       stats.disposalPlannedAssets++
       disposals.push({
@@ -1176,6 +1183,7 @@ function handleRepairRequest_(p) {
     '', // 12 외부업체 전달 여부(repairDispatch가 설정)
     p.email || '', // 13 접수자 이메일
     p.location || '', // 14 현재 위치
+    p.division || '', // 15 본부
   ])
 
   // 모든 접수는 변경로그에 남겨 추적성을 확보합니다.

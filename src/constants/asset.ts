@@ -9,7 +9,7 @@ export type AssetCategory = (typeof ASSET_CATEGORIES)[number]
 /**
  * 자산 상태 값. 자산의 생애주기(사용 → 수리 → 폐기)를 나타냅니다.
  */
-export const ASSET_STATUSES = ['사용중', '사용가능', '수리중', '폐기예정', '폐기'] as const
+export const ASSET_STATUSES = ['사용중', '재고', '수리중', '폐기예정', '폐기'] as const
 
 /** 자산 상태 유니온 타입. */
 export type AssetStatus = (typeof ASSET_STATUSES)[number]

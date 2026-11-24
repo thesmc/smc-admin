@@ -12,7 +12,7 @@ import type { RequestStatus } from '@/constants/request'
  */
 const ASSET_STATUS_VARIANT: Record<AssetStatus, BadgeVariant> = {
   사용중: 'success',
-  사용가능: 'info',
+  재고: 'info',
   수리중: 'warning',
   폐기예정: 'danger',
   폐기: 'neutral',
@@ -20,11 +20,13 @@ const ASSET_STATUS_VARIANT: Record<AssetStatus, BadgeVariant> = {
 
 /**
  * 자산 상태에 대응하는 뱃지 색상 변형을 반환합니다.
- * @param status - 자산 상태
+ * @remarks 구 상태 '사용가능'(→'재고'로 명칭 변경)과 미등록 상태도 안전하게 처리합니다.
+ * @param status - 자산 상태(시트 문자열이 들어올 수 있어 string 허용)
  * @returns 뱃지 색상 변형
  */
-export function getAssetStatusVariant(status: AssetStatus): BadgeVariant {
-  return ASSET_STATUS_VARIANT[status]
+export function getAssetStatusVariant(status: string): BadgeVariant {
+  if (status === '사용가능') return 'info' // 레거시 데이터 호환('사용가능' = 현 '재고')
+  return ASSET_STATUS_VARIANT[status as AssetStatus] ?? 'neutral'
 }
 
 /** 수리 진행 상태 → 뱃지 색상 매핑. (누락 방지를 위해 Record 사용) */

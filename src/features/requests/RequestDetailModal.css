@@ -50,6 +50,18 @@
   box-sizing: border-box;
 }
 
+.rd-assign {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
 .rd-btn {
   font: inherit;
   font-size: 14px;

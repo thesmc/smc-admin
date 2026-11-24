@@ -24,6 +24,8 @@ export interface RepairFormValues {
   priority: string
   /** 요청자 이름. */
   requesterName: string
+  /** 요청자 소속 본부. */
+  division: string
   /** 요청자 소속 부서. */
   department: string
   /** 연락처. */
@@ -42,6 +44,7 @@ export const INITIAL_REPAIR_FORM: RepairFormValues = {
   assetName: '',
   priority: '낮음',
   requesterName: '',
+  division: '',
   department: '',
   contact: '',
   email: '',

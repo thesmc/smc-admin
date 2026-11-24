@@ -11,6 +11,7 @@ export const DASHBOARD_MOCK: DashboardData = {
     inUseAssets: 1002,
     repairingAssets: 28,
     disposalPlannedAssets: 45,
+    stockAssets: 173,
     lowStockCount: 16,
   },
   // 자산 구분별 집계 (도넛 차트). 합계 1,248대.

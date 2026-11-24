@@ -93,7 +93,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     return parts.join(' · ')
   }
 
-  const reportTitle = kind === 'ledger' ? 'The SMC 회계장부(감가상각)' : 'The SMC 자산 보고서'
+  const reportTitle = kind === 'ledger' ? 'The SMC 회계장부' : 'The SMC 자산 보고서'
   const fileBase = kind === 'ledger' ? '회계장부' : '자산보고서'
 
   function handleCsv() {
@@ -132,7 +132,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           className={`report-kind-tab ${kind === 'ledger' ? 'active' : ''}`}
           onClick={() => setKind('ledger')}
         >
-          회계장부(감가상각)
+          회계장부
         </button>
       </div>
       {kind === 'ledger' && (

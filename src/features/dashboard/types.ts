@@ -63,6 +63,8 @@ export interface DashboardStats {
   repairingAssets: number
   /** 폐기 예정 자산 수. */
   disposalPlannedAssets: number
+  /** 재고(구 '사용가능') 자산 수. */
+  stockAssets: number
   /** 재고 부족 소모품 종류 수. */
   lowStockCount: number
 }

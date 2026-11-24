@@ -3,6 +3,8 @@ import { submitToGas, type GasResult } from '@/lib/gasClient'
 /** 자산 신청 폼 값. */
 export interface AssetRequestValues {
   requester: string
+  /** 본부. */
+  division: string
   department: string
   /** 요청자 이메일(접수 안내용). */
   email: string
@@ -17,6 +19,8 @@ export interface AssetRequestValues {
 /** 반납 신청 폼 값. */
 export interface ReturnRequestValues {
   requester: string
+  /** 본부. */
+  division: string
   department: string
   email: string
   location: string
@@ -29,6 +33,8 @@ export interface ReturnRequestValues {
 /** 소모품 신청 폼 값. */
 export interface ConsumableRequestValues {
   requester: string
+  /** 본부. */
+  division: string
   department: string
   email: string
   location: string
@@ -40,6 +46,8 @@ export interface ConsumableRequestValues {
 /** 자산 교체 신청 폼 값. */
 export interface AssetSwapValues {
   requester: string
+  /** 본부. */
+  division: string
   department: string
   email: string
   location: string

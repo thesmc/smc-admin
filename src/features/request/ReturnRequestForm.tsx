@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { FormSection, FormField, TextInput, SelectField } from '@/components/form'
 import { useForm } from '@/hooks/useForm'
-import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { submitReturnRequest, submitRequestBatch } from './api'
+import RequesterFields from './RequesterFields'
 import './RequestForm.css'
 
 /** 반납 사유 선택지. */
@@ -28,9 +28,9 @@ function emptyItem(): ReturnItem {
  */
 export default function ReturnRequestForm() {
   const [saving, setSaving] = useState(false)
-  const { departmentOptions, locations } = useOrgSettings()
   const { values, setField, reset } = useForm({
     requester: '',
+    division: '',
     department: '',
     email: '',
     location: '',
@@ -58,6 +58,7 @@ export default function ReturnRequestForm() {
     const result = await submitRequestBatch(validItems, (it) =>
       submitReturnRequest({
         requester: values.requester,
+        division: values.division,
         department: values.department,
         email: values.email,
         location: values.location,
@@ -80,18 +81,15 @@ export default function ReturnRequestForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FormSection title="반납 신청">
-        <FormField label="신청자" htmlFor="rr-name" required>
-          <TextInput id="rr-name" value={values.requester} onChange={(v) => setField('requester', v)} />
-        </FormField>
-        <FormField label="부서" htmlFor="rr-dept" required>
-          <SelectField id="rr-dept" value={values.department} onChange={(v) => setField('department', v)} options={departmentOptions} />
-        </FormField>
-        <FormField label="이메일" htmlFor="rr-email">
-          <TextInput id="rr-email" value={values.email} onChange={(v) => setField('email', v)} placeholder="예: hong@thesmc.co.kr" />
-        </FormField>
-        <FormField label="현재 위치" htmlFor="rr-loc">
-          <SelectField id="rr-loc" value={values.location} onChange={(v) => setField('location', v)} options={locations} />
-        </FormField>
+        <RequesterFields
+          idPrefix="rr"
+          requester={values.requester}
+          division={values.division}
+          department={values.department}
+          email={values.email}
+          location={values.location}
+          onChange={setField}
+        />
         <FormField label="반납 사유" htmlFor="rr-reason">
           <SelectField id="rr-reason" value={values.reason} onChange={(v) => setField('reason', v)} options={RETURN_REASONS} />
         </FormField>

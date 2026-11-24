@@ -15,7 +15,7 @@ type BulkRow = Pick<
 
 /** 빈 행 하나. */
 function emptyRow(): BulkRow {
-  return { name: '', category: '', manufacturer: '', acquisitionType: '구매', rentalCompany: '', user: '', location: '', status: '사용가능' }
+  return { name: '', category: '', manufacturer: '', acquisitionType: '구매', rentalCompany: '', user: '', location: '', status: '재고' }
 }
 
 /** {@link AssetBulkRegisterModal} 컴포넌트 props. */

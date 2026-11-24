@@ -48,6 +48,7 @@ function fillReal(real: Partial<DashboardData>): DashboardData {
       inUseAssets: 0,
       repairingAssets: 0,
       disposalPlannedAssets: 0,
+      stockAssets: 0,
       lowStockCount: 0,
     },
     categories: real.categories ?? [],

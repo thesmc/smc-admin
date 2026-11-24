@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { QrCode, Keyboard } from 'lucide-react'
-import { Badge } from '@/components/ui'
+import { Badge, QrScannerModal } from '@/components/ui'
 import './AssetPicker.css'
 
 /** {@link AssetPicker} 컴포넌트 props. */
@@ -32,6 +32,7 @@ const MOCK_ASSETS: Record<string, string> = {
  */
 export default function AssetPicker({ assetNumber, assetName, onSelect }: AssetPickerProps) {
   const [mode, setMode] = useState<'qr' | 'manual'>('manual')
+  const [scanOpen, setScanOpen] = useState(false)
 
   /**
    * 직접 입력한 자산번호로 자산명을 조회해 선택 상태를 갱신합니다.
@@ -39,6 +40,16 @@ export default function AssetPicker({ assetNumber, assetName, onSelect }: AssetP
    */
   function handleManualInput(value: string) {
     const upper = value.toUpperCase()
+    onSelect(upper, MOCK_ASSETS[upper] ?? '')
+  }
+
+  /**
+   * QR/바코드 스캔 결과로 자산번호를 채웁니다. (자산명은 라벨에 없으므로 조회표 폴백)
+   * @param text - 디코드된 문자열(자산번호)
+   */
+  function handleScanned(text: string) {
+    setScanOpen(false)
+    const upper = text.trim().toUpperCase()
     onSelect(upper, MOCK_ASSETS[upper] ?? '')
   }
 
@@ -62,8 +73,8 @@ export default function AssetPicker({ assetNumber, assetName, onSelect }: AssetP
       </div>
 
       {mode === 'qr' ? (
-        <button type="button" className="picker-scan">
-          QR코드를 스캔해주세요
+        <button type="button" className="picker-scan" onClick={() => setScanOpen(true)}>
+          <QrCode size={16} /> 카메라로 스캔하기
         </button>
       ) : (
         <input
@@ -83,6 +94,8 @@ export default function AssetPicker({ assetNumber, assetName, onSelect }: AssetP
           <Badge variant="success">사용 중</Badge>
         </div>
       )}
+
+      {scanOpen && <QrScannerModal onClose={() => setScanOpen(false)} onDetected={handleScanned} />}
     </div>
   )
 }

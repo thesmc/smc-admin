@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Modal, Badge } from '@/components/ui'
 import { FormField, SelectField } from '@/components/form'
 import { getRequestStatusVariant } from '@/lib/badgeVariant'
 import { REQUEST_STATUSES, PROCESS_METHODS } from '@/constants/request'
 import type { RequestStatus, ProcessMethod } from '@/constants/request'
+import { useAssets } from '@/features/asset/useAssets'
 import { updateRequest } from './api'
 import type { RequestRow } from './types'
 import './RequestDetailModal.css'
@@ -30,19 +31,37 @@ export default function RequestDetailModal({ request, onClose, onSaved }: Reques
   const [status, setStatus] = useState<RequestStatus>(request?.status ?? '접수')
   const [method, setMethod] = useState<ProcessMethod | ''>(request?.method ?? '')
   const [note, setNote] = useState(request?.note ?? '')
+  // 자산교체 신청: 지급할 재고 자산 선택(자산번호). 선택 시 처리메모에 '지급' 정보를 합쳐 저장.
+  const [assignAsset, setAssignAsset] = useState('')
+  const { assets } = useAssets()
+
+  const isSwap = request?.kind === '자산교체'
+  // 재고(구 '사용가능') 상태 자산만 지급 후보로 제시.
+  const stockAssets = useMemo(
+    // '재고'(현) + 레거시 '사용가능' 데이터 모두 지급 후보로. (시트에 구 상태가 남아있을 수 있어 string 비교)
+    () => assets.filter((a) => a.status === '재고' || (a.status as string) === '사용가능'),
+    [assets],
+  )
 
   if (!request) return null
 
   /** 처리 저장. 성공 시 목록에 반영하고 닫습니다. */
   async function handleSave() {
     if (!request) return
+    // 지급 자산을 골랐으면 처리메모 앞에 '[지급: 번호 자산명]'을 붙여 함께 기록.
+    let finalNote = note
+    if (assignAsset) {
+      const picked = stockAssets.find((a) => a.assetNumber === assignAsset)
+      const label = picked ? `${picked.assetNumber} ${picked.name}`.trim() : assignAsset
+      finalNote = `[지급: ${label}]${note ? ' ' + note : ''}`
+    }
     setSaving(true)
-    const result = await updateRequest({ rowIndex: request.rowIndex, status, method, note })
+    const result = await updateRequest({ rowIndex: request.rowIndex, status, method, note: finalNote })
     setSaving(false)
     if (result.ok) {
       // 처리일시는 서버가 확정하지만, 목록 즉시 반영을 위해 오늘 날짜로 낙관적 갱신
       const today = new Date().toISOString().slice(0, 10)
-      onSaved({ ...request, status, method, note, processedAt: status === '접수' ? '' : today })
+      onSaved({ ...request, status, method, note: finalNote, processedAt: status === '접수' ? '' : today })
       onClose()
     } else {
       window.alert(`처리 저장 실패: ${result.message ?? '알 수 없는 오류'}`)
@@ -79,9 +98,11 @@ export default function RequestDetailModal({ request, onClose, onSaved }: Reques
           </dd>
         </div>
         <div>
-          <dt>신청자 / 부서</dt>
+          <dt>신청자 / 소속</dt>
           <dd>
-            {request.requester} {request.department && `· ${request.department}`}
+            {request.requester}
+            {request.division && ` · ${request.division}`}
+            {request.department && ` · ${request.department}`}
           </dd>
         </div>
         <div>
@@ -132,6 +153,26 @@ export default function RequestDetailModal({ request, onClose, onSaved }: Reques
               placeholder="선택 안 함"
             />
           </FormField>
+          {isSwap && (
+            <FormField label="지급할 자산(재고)" htmlFor="rd-assign" fullWidth>
+              <select
+                id="rd-assign"
+                className="rd-assign"
+                value={assignAsset}
+                onChange={(e) => setAssignAsset(e.target.value)}
+              >
+                <option value="">
+                  {stockAssets.length ? '재고 자산 선택(선택 시 처리메모에 기록)' : '선택 가능한 재고 자산 없음'}
+                </option>
+                {stockAssets.map((a) => (
+                  <option key={a.assetNumber} value={a.assetNumber}>
+                    {a.assetNumber} · {a.name}
+                    {a.category ? ` (${a.category})` : ''}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          )}
           <FormField label="처리 메모" htmlFor="rd-note" fullWidth>
             <textarea
               id="rd-note"

@@ -13,6 +13,8 @@ export interface RequestRow {
   kind: RequestKind | string
   /** 신청자. */
   requester: string
+  /** 본부(선택). */
+  division?: string
   /** 부서. */
   department: string
   /** 자산번호(반납신청 등). */
